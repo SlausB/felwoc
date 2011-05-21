@@ -7,6 +7,10 @@
 #include "output/messenger.h"
 #include "output/outputs/console_output.h"
 
+//configuration file:
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+
 #include "Windows.h"
 
 ConsoleOutput consoleOutput;
@@ -14,6 +18,11 @@ Messenger messenger(&consoleOutput);
 
 #define FAIL(message) messenger << message; errorsCount++; return;
 #define MSG(message) messenger << message;
+
+
+// true - JSON будет печататься с символами отступов:
+bool prettyPrint = true;
+
 
 char CHAR_BUFFER[999999];
 
@@ -173,7 +182,7 @@ void ProcessXLS(const std::string& fileName)
 						{
 							if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 							{
-								MSG(boost::format("W: cell at row %d and column %d is undefined! Will be written as is.\n") % (row + 1) % (column + 1));
+								MSG(boost::format("W: \"%s\": cell at row %d and column %d is undefined! Will be written as is.\n") % worksheetName % (row + 1) % (column + 1));
 							}
 
 							//XML:
@@ -275,7 +284,12 @@ void ProcessXLS(const std::string& fileName)
 	xml.save_file(str(boost::format("%s.xml") % xlsName).c_str(), PUGIXML_TEXT("\t"), pugi::format_default, pugi::encoding_wchar);
 	//запись в JSON:
 	std::ofstream os(str(boost::format("%s.json") % xlsName).c_str());
-	write(json, os, json_spirit::pretty_print | json_spirit::raw_utf8);
+	int jsonSettings = json_spirit::raw_utf8;
+	if(prettyPrint)
+	{
+		jsonSettings |= json_spirit::pretty_print;
+	}
+	write(json, os, jsonSettings);
 
 END:
 
@@ -291,6 +305,20 @@ END:
 
 int main()
 {
+	//чтение конфигурационного файла:
+	boost::property_tree::ptree config;
+	try
+	{
+		boost::property_tree::read_ini("xls2xj.ini", config);
+
+		std::string jsonPrint = config.get<std::string>("json_print", "pretty");
+		prettyPrint = jsonPrint.compare("pretty") == 0;
+	}
+	catch(std::exception& e)
+	{
+		MSG(boost::format("E: \"xls2xj.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what());
+	}
+
 	//нужно перейти на итерацию по всем файлам в папке с расширением ".xls"...
 	ProcessXLS("design2.xls");
 
