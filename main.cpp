@@ -11,6 +11,8 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 
+#include <boost/filesystem.hpp>
+
 #include "Windows.h"
 
 ConsoleOutput consoleOutput;
@@ -319,8 +321,27 @@ int main()
 		MSG(boost::format("E: \"xls2xj.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what());
 	}
 
-	//нужно перейти на итерацию по всем файлам в папке с расширением ".xls"...
-	ProcessXLS("design2.xls");
+	//итерация по всем .xls-файлам в текущей папке:
+	boost::filesystem::directory_iterator dirEnd;
+	for(boost::filesystem::directory_iterator it("./"); it != dirEnd; it++)
+	{
+		if(boost::filesystem::is_directory(it->status()) == false)
+		{
+			std::string fileName = it->path().filename();
+			const int size = fileName.size();
+			//если файл формата .xls:
+			if(size >= 4)
+			{
+				if(fileName[size - 4] == '.' && 
+					(fileName[size - 3] == 'x' || fileName[size - 3] == 'X') &&
+					(fileName[size - 2] == 'l' || fileName[size - 2] == 'L') &&
+					(fileName[size - 1] == 's' || fileName[size - 1] == 'S'))
+				{
+					ProcessXLS(fileName);
+				}
+			}
+		}
+	}
 
 	MSG(boost::format("I: All done. Hit any key to exit...\n"));
 
