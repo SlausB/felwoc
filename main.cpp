@@ -12,9 +12,6 @@
 ConsoleOutput consoleOutput;
 Messenger messenger(&consoleOutput);
 
-using namespace ExcelFormat;
-using namespace json_spirit;
-
 #define FAIL(message) messenger << message; errorsCount++; return;
 #define MSG(message) messenger << message;
 
@@ -56,7 +53,7 @@ void ProcessXLS(const std::string& fileName)
 
 	MSG(boost::format("I: processing \"%s\"...\n") % fileName);
 
-	BasicExcel xls;
+	ExcelFormat::BasicExcel xls;
 	if(xls.Load(fileName.c_str()) == false)
 	{
 		FAIL(boost::format("E: \"%s\" was NOT loaded.\n") % fileName);
@@ -69,10 +66,12 @@ void ProcessXLS(const std::string& fileName)
 	//XML:
 	pugi::xml_document xml;
 	pugi::xml_node documentNode = xml.append_child(xlsName.c_str());
+	//JSON:
+	json_spirit::Object json;
 	
 	for(int i = 0; i < totalWorkSheets; i++)
 	{
-		BasicExcelWorksheet* worksheet = xls.GetWorksheet(i);
+		ExcelFormat::BasicExcelWorksheet* worksheet = xls.GetWorksheet(i);
 
 		std::string worksheetName(worksheet->GetAnsiSheetName());
 
@@ -101,7 +100,10 @@ void ProcessXLS(const std::string& fileName)
 			continue;
 		}
 
-		pugi::xml_node spreadsheetNode = documentNode.append_child(worksheetName.c_str());
+		//XML:
+		pugi::xml_node xmlSpreadsheet = documentNode.append_child(worksheetName.c_str());
+		//JSON:
+		json_spirit::Array jsonSpreadsheet;
 
 		//двумерный массив флагов считываний по вертикали (столбцы):
 		std::map<int, bool> columnsPermissions;
@@ -116,7 +118,7 @@ void ProcessXLS(const std::string& fileName)
 			{
 				for(int column = 0; column < columnsCount; column++)
 				{
-					BasicExcelCell* cell = worksheet->Cell(row, column);
+					ExcelFormat::BasicExcelCell* cell = worksheet->Cell(row, column);
 
 					//первый столбец для горизонтальных комментариев:
 					if(column < 1)
@@ -125,7 +127,7 @@ void ProcessXLS(const std::string& fileName)
 					}
 					else
 					{
-						if(cell->Type() == BasicExcelCell::INT)
+						if(cell->Type() == ExcelFormat::BasicExcelCell::INT)
 						{
 							columnsPermissions[column] = cell->GetInteger() != 0;
 						}
@@ -141,9 +143,9 @@ void ProcessXLS(const std::string& fileName)
 			{
 				for(int column = 1; column < columnsCount; column++)
 				{
-					BasicExcelCell* cell = worksheet->Cell(row, column);
+					ExcelFormat::BasicExcelCell* cell = worksheet->Cell(row, column);
 
-					if(cell->Type() == BasicExcelCell::UNDEFINED)
+					if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 					{
 						continue;
 					}
@@ -156,47 +158,74 @@ void ProcessXLS(const std::string& fileName)
 				//если вся текущая строка НЕ является комментарием:
 				if(worksheet->Cell(row, 0)->GetInteger() != 0)
 				{
-					pugi::xml_node itemNode = spreadsheetNode.append_child("item");
+					//XML:
+					pugi::xml_node xmlItem = xmlSpreadsheet.append_child("item");
+					//JSON:
+					json_spirit::Object jsonItem;
 
 					//первый столбец зарезервирован для горизонтальных комментариев:
 					for(int column = 1; column < columnsCount; column++)
 					{
-						BasicExcelCell* cell = worksheet->Cell(row, column);
+						ExcelFormat::BasicExcelCell* cell = worksheet->Cell(row, column);
 
 						//если элемент-столбец текущей строки НЕ является комментарием:
 						if(columnsPermissions[column] == true)
 						{
-							if(cell->Type() == BasicExcelCell::UNDEFINED)
+							if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 							{
-								FAIL(boost::format("E: cell at row %d and column %d is undefined! Nothing will be generated.\n") % (row + 1) % (column + 1));
+								MSG(boost::format("W: cell at row %d and column %d is undefined! Will be written as is.\n") % (row + 1) % (column + 1));
 							}
 
-							pugi::xml_attribute attribute = itemNode.append_attribute(attributes[column].c_str());
+							//XML:
+							pugi::xml_attribute xmlAttribute = xmlItem.append_attribute(attributes[column].c_str());
 
 							switch(cell->Type())
 							{
-							case BasicExcelCell::UNDEFINED:
-								attribute.set_value("__undefined__");
-								break;
-							case BasicExcelCell::INT:
+							case ExcelFormat::BasicExcelCell::UNDEFINED:
 								{
-									attribute.set_value(str(boost::format("%d") % cell->GetInteger()).c_str());
+									//XML:
+									xmlAttribute.set_value("__undefined__");
+									//JSON:
+									jsonItem.push_back(json_spirit::Pair(attributes[column], "__undefined__"));
 								}
 								break;
-							case BasicExcelCell::DOUBLE:
+							case ExcelFormat::BasicExcelCell::INT:
+								{
+									//XML:
+									xmlAttribute.set_value(str(boost::format("%d") % cell->GetInteger()).c_str());
+									//JSON:
+									jsonItem.push_back(json_spirit::Pair(attributes[column], cell->GetInteger()));
+								}
+								break;
+							case ExcelFormat::BasicExcelCell::DOUBLE:
 								{
 									std::string doubleAsString = str(boost::format("%f") % cell->GetDouble());
 									TruncateValue(doubleAsString);
-									attribute.set_value(doubleAsString.c_str());
+									
+									//XML:
+									xmlAttribute.set_value(doubleAsString.c_str());
+									//JSON:
+									jsonItem.push_back(json_spirit::Pair(attributes[column], doubleAsString));
 								}
 								break;
-							case BasicExcelCell::STRING:
-								attribute.set_value(cell->GetString());
+							case ExcelFormat::BasicExcelCell::STRING:
+								{
+									//XML:
+									xmlAttribute.set_value(cell->GetString());
+									//JSON:
+									jsonItem.push_back(json_spirit::Pair(attributes[column], cell->GetString()));
+								}
 								break;
-							case BasicExcelCell::WSTRING:
-								attribute.set_value(ToChar(cell->GetWString()));
+							case ExcelFormat::BasicExcelCell::WSTRING:
+								{
+									const char* wstringAsChar = ToChar(cell->GetWString());
+									//XML:
+									xmlAttribute.set_value(wstringAsChar);
+									//JSON:
+									jsonItem.push_back(json_spirit::Pair(attributes[column], wstringAsChar));
+								}
 								break;
-							case BasicExcelCell::FORMULA:
+							case ExcelFormat::BasicExcelCell::FORMULA:
 								{
 									const char* formulaAsString = cell->GetString();
 									//числовые формулы представлены в виде пустой строки если получать их как строку:
@@ -204,28 +233,49 @@ void ProcessXLS(const std::string& fileName)
 									{
 										std::string valueAsString = str(boost::format("%f") % cell->GetDouble());
 										TruncateValue(valueAsString);
-										attribute.set_value(valueAsString.c_str());
+										
+										//XML:
+										xmlAttribute.set_value(valueAsString.c_str());
+										//JSON:
+										jsonItem.push_back(json_spirit::Pair(attributes[column], valueAsString));
 									}
 									//строковые формулы имеют результирующую строку:
 									else
 									{
-										attribute.set_value(formulaAsString);
+										//XML:
+										xmlAttribute.set_value(formulaAsString);
+										//JSON:
+										jsonItem.push_back(json_spirit::Pair(attributes[column], formulaAsString));
 									}
 								}
 								break;
 							default:
-								MSG("UNKNOWN		");
-								attribute.set_value("__unknown__");
+								{
+									//XML:
+									xmlAttribute.set_value("__unknown__");
+									//JSON:
+									jsonItem.push_back(json_spirit::Pair(attributes[column], "__unknown__"));
+								}
 								break;
 							}
 						}
 					}
+
+					//JSON:
+					jsonSpreadsheet.push_back(jsonItem);
 				}
 			}
 		}
+
+		//JSON:
+		json.push_back(json_spirit::Pair(worksheetName, jsonSpreadsheet));
 	}
 
-	xml.save_file("design.xml", PUGIXML_TEXT("\t"), pugi::format_default, pugi::encoding_wchar);
+	//запись в XML:
+	xml.save_file(str(boost::format("%s.xml") % xlsName).c_str(), PUGIXML_TEXT("\t"), pugi::format_default, pugi::encoding_wchar);
+	//запись в JSON:
+	std::ofstream os(str(boost::format("%s.json") % xlsName).c_str());
+	write(json, os, json_spirit::pretty_print | json_spirit::raw_utf8);
 
 END:
 
