@@ -7,24 +7,68 @@
 #include "output/messenger.h"
 #include "output/outputs/console_output.h"
 
-using namespace ExcelFormat;
+#include "Windows.h"
 
-#define FAIL(message) messenger << message; errorsCount++; goto END;
+ConsoleOutput consoleOutput;
+Messenger messenger(&consoleOutput);
+
+using namespace ExcelFormat;
+using namespace json_spirit;
+
+#define FAIL(message) messenger << message; errorsCount++; return;
 #define MSG(message) messenger << message;
+
+char CHAR_BUFFER[999999];
+
+char* ToChar(const wchar_t* source)
+{
+	//const int codePage = CP_ACP;
+	const int codePage = CP_UTF8;
+
+	const int result = WideCharToMultiByte(codePage, 0, source, -1, CHAR_BUFFER, sizeof(CHAR_BUFFER), NULL, NULL);
+	if(result <= 0)
+	{
+		MSG(boost::format("E: WideCharToMultiByte() failed.\n"));
+		return NULL;
+	}
+	return CHAR_BUFFER;
+}
+
+void TruncateValue(std::string& valueAsString)
+{
+	//убираем все нули в конце, если число написано в виде десятичной дроби:
+	if(valueAsString.find('.') != string::npos)
+	{
+		while(valueAsString[valueAsString.size() - 1] == '0')
+		{
+			valueAsString.pop_back();
+		}
+		if(valueAsString[valueAsString.size() - 1] == '.')
+		{
+			valueAsString.pop_back();
+		}
+	}
+}
 
 void ProcessXLS(const std::string& fileName)
 {
 	int errorsCount = 0;
 
-	ConsoleOutput consoleOutput;
-	Messenger messenger(&consoleOutput);
+	MSG(boost::format("I: processing \"%s\"...\n") % fileName);
 
-	BasicExcel xls(fileName.c_str());
+	BasicExcel xls;
+	if(xls.Load(fileName.c_str()) == false)
+	{
+		FAIL(boost::format("E: \"%s\" was NOT loaded.\n") % fileName);
+	}
 	
 	const int totalWorkSheets	= xls.GetTotalWorkSheets();
+
+	std::string xlsName(fileName.c_str(), fileName.size() - 4);
 	
 	//XML:
 	pugi::xml_document xml;
+	pugi::xml_node documentNode = xml.append_child(xlsName.c_str());
 	
 	for(int i = 0; i < totalWorkSheets; i++)
 	{
@@ -32,12 +76,23 @@ void ProcessXLS(const std::string& fileName)
 
 		std::string worksheetName(worksheet->GetAnsiSheetName());
 
+		if(worksheetName.size() <= 0)
+		{
+			continue;
+		}
+
+		//по дизайнерскому решению вкладки, начинающиеся с восклицательного знака, должны пропускаться как технические:
+		if(worksheetName[0] == '!')
+		{
+			continue;
+		}
+
 		const int rowsCount = worksheet->GetTotalRows();
 		const int columnsCount = worksheet->GetTotalCols();
 
-		if(rowsCount < 6)
+		if(rowsCount < 3)
 		{
-			MSG(boost::format("W: spreadsheet \"%s\" must have at least 6 rows.\n") % worksheetName);
+			MSG(boost::format("W: spreadsheet \"%s\" must have at least 3 rows.\n") % worksheetName);
 			continue;
 		}
 		if(columnsCount < 2)
@@ -46,7 +101,7 @@ void ProcessXLS(const std::string& fileName)
 			continue;
 		}
 
-		pugi::xml_node spreadsheetNode = xml.append_child(worksheetName.c_str());
+		pugi::xml_node spreadsheetNode = documentNode.append_child(worksheetName.c_str());
 
 		//двумерный массив флагов считываний по вертикали (столбцы):
 		std::map<int, bool> columnsPermissions;
@@ -56,8 +111,8 @@ void ProcessXLS(const std::string& fileName)
 
 		for(int row = 0; row < rowsCount; row++)
 		{
-			//первые четыре строки - это дифференциация пока ненужных flash/server/script...:
-			if(row < 4)
+			//первая строка - определения надобности стобцов:
+			if(row < 1)
 			{
 				for(int column = 0; column < columnsCount; column++)
 				{
@@ -82,7 +137,7 @@ void ProcessXLS(const std::string& fileName)
 				}
 			}
 			//если на очереди строка имён свойств элементов:
-			else if(row == 4)
+			else if(row == 1)
 			{
 				for(int column = 1; column < columnsCount; column++)
 				{
@@ -124,16 +179,22 @@ void ProcessXLS(const std::string& fileName)
 								attribute.set_value("__undefined__");
 								break;
 							case BasicExcelCell::INT:
-								attribute.set_value(str(boost::format("%d") % cell->GetInteger()).c_str());
+								{
+									attribute.set_value(str(boost::format("%d") % cell->GetInteger()).c_str());
+								}
 								break;
 							case BasicExcelCell::DOUBLE:
-								attribute.set_value(str(boost::format("%f") % cell->GetDouble()).c_str());
+								{
+									std::string doubleAsString = str(boost::format("%f") % cell->GetDouble());
+									TruncateValue(doubleAsString);
+									attribute.set_value(doubleAsString.c_str());
+								}
 								break;
 							case BasicExcelCell::STRING:
 								attribute.set_value(cell->GetString());
 								break;
 							case BasicExcelCell::WSTRING:
-								attribute.set_value("__wchar__");
+								attribute.set_value(ToChar(cell->GetWString()));
 								break;
 							case BasicExcelCell::FORMULA:
 								{
@@ -141,7 +202,9 @@ void ProcessXLS(const std::string& fileName)
 									//числовые формулы представлены в виде пустой строки если получать их как строку:
 									if(strlen(formulaAsString) <= 0)
 									{
-										attribute.set_value(str(boost::format("%f") % cell->GetDouble()).c_str());
+										std::string valueAsString = str(boost::format("%f") % cell->GetDouble());
+										TruncateValue(valueAsString);
+										attribute.set_value(valueAsString.c_str());
 									}
 									//строковые формулы имеют результирующую строку:
 									else
@@ -160,115 +223,28 @@ void ProcessXLS(const std::string& fileName)
 				}
 			}
 		}
-
-		/*for(int row = 0; row < rowsCount; row++)
-		{
-			printf("	");
-
-			for(int column = 0; column < columnsCount; column++)
-			{
-				BasicExcelCell* cell = worksheet->Cell(row, column);
-
-				switch(cell->Type())
-				{
-				case BasicExcelCell::UNDEFINED:
-					printf("UNDEFINED		");
-					break;
-				case BasicExcelCell::INT:
-					printf("INT: %d		", cell->GetInteger());
-					break;
-				case BasicExcelCell::DOUBLE:
-					printf("DOUBLE: %f		", (float)cell->GetDouble());
-					break;
-				case BasicExcelCell::STRING:
-					printf("STRING: %s		", cell->GetString());
-					break;
-				case BasicExcelCell::WSTRING:
-					printf("WSTRING		");
-					break;
-				case BasicExcelCell::FORMULA:
-					printf("FORMULA: %f		", (float)cell->GetDouble());
-					break;
-				default:
-					printf("UNKNOWN		");
-					break;
-				}
-			}
-
-			printf("\n");
-		}*/
 	}
 
-
-	xml.save_file("design.xml");
-
-
-
-	/* // create sheet 1 and get the associated BasicExcelWorksheet pointer
-	xls.New(1);
-	BasicExcelWorksheet* sheet = xls.GetWorksheet(0);
-
-	XLSFormatManager fmt_mgr(xls);
-	CellFormat fmt(fmt_mgr);
-	BasicExcelCell* cell;
-
-
-	 // row 1
-
-	fmt.set_format_string(XLS_FORMAT_INTEGER);
-	cell = sheet->Cell(0, 0);
-	cell->Set(1.);
-	cell->SetFormat(fmt);
-
-	fmt.set_format_string(XLS_FORMAT_DECIMAL);
-	cell = sheet->Cell(0, 1);
-	cell->Set(2.);
-	cell->SetFormat(fmt);
-
-	fmt.set_format_string(XLS_FORMAT_DATE);
-	fmt.set_font(ExcelFont().set_weight(FW_BOLD));
-	cell = sheet->Cell(0, 2);
-	cell->Set("03.03.2000");
-	cell->SetFormat(fmt);
-
-
-	 // row 2
-
-	fmt.set_font(ExcelFont().set_weight(FW_NORMAL));
-	fmt.set_format_string(XLS_FORMAT_GENERAL);
-	cell = sheet->Cell(1, 0);
-	cell->Set("normal");
-	cell->SetFormat(fmt);
-
-	fmt.set_format_string(XLS_FORMAT_TEXT);
-	cell = sheet->Cell(1, 1);
-	cell->Set("Text");
-	cell->SetFormat(fmt);
-
-	fmt.set_format_string(XLS_FORMAT_GENERAL);
-	fmt.set_font(ExcelFont().set_weight(FW_BOLD));
-	cell = sheet->Cell(1, 2);
-	cell->Set("bold");
-	cell->SetFormat(fmt);
-
-
-	xls.SaveAs(path);*/
+	xml.save_file("design.xml", PUGIXML_TEXT("\t"), pugi::format_default, pugi::encoding_wchar);
 
 END:
 
 	if(errorsCount <= 0)
 	{
-		messenger << boost::format("I: Everything worked successfully.\n");
+		MSG(boost::format("I: \"%s\" processed successfully.\n") % fileName);
 	}
 	else
 	{
-		messenger << boost::format("E: there was some errors.\n");
+		MSG(boost::format("E: \"%s\" processed with errors.\n") % fileName);
 	}
 }
 
 int main()
 {
+	//нужно перейти на итерацию по всем файлам в папке с расширением ".xls"...
 	ProcessXLS("design2.xls");
+
+	MSG(boost::format("I: All done. Hit any key to exit...\n"));
 
 	getchar();
 
