@@ -89,6 +89,7 @@
     <ClCompile Include="..\..\main.cpp" />
     <ClCompile Include="..\..\output\messenger.cpp" />
     <ClCompile Include="..\..\output\outputs\console_output.cpp" />
+    <ClCompile Include="..\..\output\outputs\file_output.cpp" />
     <ClCompile Include="..\..\xml\pugixml.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
