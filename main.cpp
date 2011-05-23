@@ -6,6 +6,7 @@
 
 #include "output/messenger.h"
 #include "output/outputs/console_output.h"
+#include "output/outputs/file_output.h"
 
 //configuration file:
 #include <boost/property_tree/ptree.hpp>
@@ -27,6 +28,11 @@ bool prettyPrint = true;
 
 
 char CHAR_BUFFER[999999];
+
+char* UNDEFINED_NAME = "__undefined_name__";
+char* UNDEFINED_VALUE = "__undefined_value__";
+char* NULL_NAME = "__null_name__";
+char* UNKNOWN_VALUE = "__unknown_value__";
 
 char* ToChar(const wchar_t* source)
 {
@@ -83,8 +89,16 @@ void ProcessXLS(const std::string& fileName)
 	for(int i = 0; i < totalWorkSheets; i++)
 	{
 		ExcelFormat::BasicExcelWorksheet* worksheet = xls.GetWorksheet(i);
+		const char* charWorksheetName = worksheet->GetAnsiSheetName();
+		if(charWorksheetName == NULL)
+		{
+			MSG(boost::format("W: NULL spreadsheet name encountered.\n"));
+			continue;
+		}
 
-		std::string worksheetName(worksheet->GetAnsiSheetName());
+		MSG(boost::format("I: spreadsheet \"%s\": processing...\n") % charWorksheetName);
+
+		std::string worksheetName(charWorksheetName);
 
 		if(worksheetName.size() <= 0)
 		{
@@ -124,7 +138,7 @@ void ProcessXLS(const std::string& fileName)
 
 		for(int row = 0; row < rowsCount; row++)
 		{
-			//первая строка - определения надобности стобцов:
+			//первая строка - определения надобности столбцов:
 			if(row < 1)
 			{
 				for(int column = 0; column < columnsCount; column++)
@@ -154,14 +168,32 @@ void ProcessXLS(const std::string& fileName)
 			{
 				for(int column = 1; column < columnsCount; column++)
 				{
-					ExcelFormat::BasicExcelCell* cell = worksheet->Cell(row, column);
-
-					if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
+					//если столбец является комментарием, то с ним ничего делать не нужно - он никогда не должен использоваться:
+					if(columnsPermissions[column] == false)
 					{
 						continue;
 					}
 
-					attributes[column] = cell->GetString();
+					ExcelFormat::BasicExcelCell* cell = worksheet->Cell(row, column);
+
+					if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
+					{
+						MSG(boost::format("E: spreadsheet \"%s\": item name at %d column is undefined. Applying \"%s\".\n") % worksheetName % (column + 1) % UNDEFINED_NAME);
+						attributes[column] = UNDEFINED_NAME;
+					}
+					else
+					{
+						const char* cellString = cell->GetString();
+						if(cellString == NULL)
+						{
+							MSG(boost::format("E: spreadsheet \"%s\": item name at %d column is null. Applying \"%s\".\n") % worksheetName % (column + 1) % NULL_NAME);
+							attributes[column] = NULL_NAME;
+						}
+						else
+						{
+							attributes[column] = cellString;
+						}
+					}
 				}
 			}
 			else
@@ -184,7 +216,7 @@ void ProcessXLS(const std::string& fileName)
 						{
 							if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 							{
-								MSG(boost::format("W: \"%s\": cell at row %d and column %d is undefined! Will be written as is.\n") % worksheetName % (row + 1) % (column + 1));
+								MSG(boost::format("W: \"%s\": cell at row %d and column %d is undefined! Applying \"%s\".\n") % worksheetName % (row + 1) % (column + 1) % UNDEFINED_VALUE);
 							}
 
 							//XML:
@@ -195,9 +227,9 @@ void ProcessXLS(const std::string& fileName)
 							case ExcelFormat::BasicExcelCell::UNDEFINED:
 								{
 									//XML:
-									xmlAttribute.set_value("__undefined__");
+									xmlAttribute.set_value(UNDEFINED_VALUE);
 									//JSON:
-									jsonItem.push_back(json_spirit::Pair(attributes[column], "__undefined__"));
+									jsonItem.push_back(json_spirit::Pair(attributes[column], UNDEFINED_VALUE));
 								}
 								break;
 							case ExcelFormat::BasicExcelCell::INT:
@@ -262,10 +294,12 @@ void ProcessXLS(const std::string& fileName)
 								break;
 							default:
 								{
+									MSG(boost::format("E: spreadsheet \"%s\": cell at row %d and column %d is of unknown type. Applying \"%s\".\n") % worksheetName % (row + 1) % (column + 1) % UNKNOWN_VALUE);
+
 									//XML:
-									xmlAttribute.set_value("__unknown__");
+									xmlAttribute.set_value(UNKNOWN_VALUE);
 									//JSON:
-									jsonItem.push_back(json_spirit::Pair(attributes[column], "__unknown__"));
+									jsonItem.push_back(json_spirit::Pair(attributes[column], UNKNOWN_VALUE));
 								}
 								break;
 							}
@@ -307,6 +341,9 @@ END:
 
 int main()
 {
+	FileOutput fileOutput("xls2xj.txt");
+	messenger.add(&fileOutput);
+
 	//чтение конфигурационного файла:
 	boost::property_tree::ptree config;
 	try
@@ -322,6 +359,7 @@ int main()
 	}
 
 	//итерация по всем .xls-файлам в текущей папке:
+	int processed = 0;
 	boost::filesystem::directory_iterator dirEnd;
 	for(boost::filesystem::directory_iterator it("./"); it != dirEnd; it++)
 	{
@@ -338,12 +376,20 @@ int main()
 					(fileName[size - 1] == 's' || fileName[size - 1] == 'S'))
 				{
 					ProcessXLS(fileName);
+					processed++;
 				}
 			}
 		}
 	}
 
-	MSG(boost::format("I: All done. Hit any key to exit...\n"));
+	if(processed <= 0)
+	{
+		MSG(boost::format("W: no \"xls\" files found within executable's directory.\n"));
+	}
+	else
+	{
+		MSG(boost::format("I: All done. Hit Enter to exit...\n"));
+	}
 
 	getchar();
 
