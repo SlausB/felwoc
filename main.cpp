@@ -55,11 +55,11 @@ void TruncateValue(std::string& valueAsString)
 	{
 		while(valueAsString[valueAsString.size() - 1] == '0')
 		{
-			valueAsString.pop_back();
+			valueAsString.resize(valueAsString.size() - 1);
 		}
 		if(valueAsString[valueAsString.size() - 1] == '.')
 		{
-			valueAsString.pop_back();
+			valueAsString.resize(valueAsString.size() - 1);
 		}
 	}
 }
@@ -365,7 +365,7 @@ int main()
 	{
 		if(boost::filesystem::is_directory(it->status()) == false)
 		{
-			std::string fileName = it->path().filename();
+			std::string fileName = it->path().filename().string();
 			const int size = fileName.size();
 			//если файл формата .xls:
 			if(size >= 4)
