@@ -3,24 +3,29 @@
 #ifndef TABLE_H
 #define TABLE_H
 
+/** Mathematical table with rows and columns.*/
 class Table
 {
 public:
 	
 	Table();
 	
-	/** Возможные типы вкладок.*/
+	/** All possible table types.*/
 	enum
 	{
-		UNTYPED,
-		MANY,
-		SINGLE,
-		PRECISE,
-		MORPH,
+		UNTYPED,	/**< Error state or table was not defined yet.*/
+		MANY,	/**< Many objects of different types.*/
+		SINGLE,	/**< So-called "singleton" - single object which fields are table's rows values which can be changed and object can be serialized.*/
+		PRECISE,	/**< The same as "SINGLE" but fields are fixed (cannot be changed), known right after loading (they are constant) and serialization cannot be applied.*/
+		MORPH,	/**< Single object which can have one of states which are defined in rows.*/
+		VIRTUAL,	/**< "Virtual table" from which someone can be inherited.*/
 	};
 
-	/** Тип текущей вкладки.*/
+	/** This table type.*/
 	int type;
+	
+	/** Parent folder or NULL if this folder does not have any parent. Only single inheritance implemented yet.*/
+	Table* parent;
 };
 
 #endif//#ifndef TABLE_H
