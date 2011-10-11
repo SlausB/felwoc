@@ -3,6 +3,11 @@
 #ifndef TABLE_H
 #define TABLE_H
 
+#include <vector>
+
+#include "field.h"
+
+
 /** Mathematical table with rows and columns.*/
 class Table
 {
@@ -26,6 +31,9 @@ public:
 	
 	/** Parent folder or NULL if this folder does not have any parent. Only single inheritance implemented yet.*/
 	Table* parent;
+	
+	/** All tables fields. Inherited too.*/
+	std::vector<Field*> fields;
 };
 
 #endif//#ifndef TABLE_H
