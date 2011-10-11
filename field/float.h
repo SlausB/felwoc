@@ -8,7 +8,7 @@
 class Float: public Field
 {
 public:
-	
+	int value;
 };
 
 #endif//#ifndef FLOAT_H

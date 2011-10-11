@@ -8,7 +8,7 @@
 class Int: public Field
 {
 public:
-	
+	int value;
 };
 
 #endif//#ifndef INT_H

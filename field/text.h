@@ -8,7 +8,7 @@
 class Text: public Field
 {
 public:
-	
+	std::string text;
 };
 
 #endif//#ifndef TEXT_H
