@@ -5,7 +5,7 @@
 
 #include <string>
 
-/** Data field within table.*/
+/** Data field type within table.*/
 class Field
 {
 public:
@@ -15,6 +15,7 @@ public:
 	{
 		UNDEFINED,	/**< Error.*/
 		INHERITED,	/**< Inherited from parent table.*/
+		SERVICE,	/**< Needed for implementation.*/
 		TEXT,	/**< Literal.*/
 		FLOAT,	/**< Real-valued.*/
 		INT,	/**< Integer.*/
@@ -25,6 +26,9 @@ public:
 	int type;
 	
 	std::string name;
+	
+	/** Empty if it was NOT specified.*/
+	std::string commentary;
 };
 
 #endif//#ifndef FIELD_H

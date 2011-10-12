@@ -2,7 +2,7 @@
 
 #include "table.h"
 
-Table::Table(): type(Table::UNTYPED), parent(NULL)
+Table::Table(const std::string& name): name(name), type(Table::UNTYPED), parent(NULL)
 {
 }
 

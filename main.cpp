@@ -1,4 +1,4 @@
-
+п»ї
 #include "excel_format/ExcelFormat.h"
 #include "excel_format/BasicExcel.hpp"
 #include "xml/pugixml.hpp"
@@ -19,11 +19,8 @@
 ConsoleOutput consoleOutput;
 Messenger messenger(&consoleOutput);
 
-#define FAIL(message) messenger << message; errorsCount++; return;
-#define MSG(message) messenger << message;
 
-
-// true - JSON будет печататься с символами отступов:
+// true - JSON Р±СѓРґРµС‚ РїРµС‡Р°С‚Р°С‚СЊСЃСЏ СЃ СЃРёРјРІРѕР»Р°РјРё РѕС‚СЃС‚СѓРїРѕРІ:
 bool prettyPrint = true;
 
 
@@ -50,7 +47,7 @@ char* ToChar(const wchar_t* source)
 
 void TruncateValue(std::string& valueAsString)
 {
-	//убираем все нули в конце, если число написано в виде десятичной дроби:
+	//СѓР±РёСЂР°РµРј РІСЃРµ РЅСѓР»Рё РІ РєРѕРЅС†Рµ, РµСЃР»Рё С‡РёСЃР»Рѕ РЅР°РїРёСЃР°РЅРѕ РІ РІРёРґРµ РґРµСЃСЏС‚РёС‡РЅРѕР№ РґСЂРѕР±Рё:
 	if(valueAsString.find('.') != string::npos)
 	{
 		while(valueAsString[valueAsString.size() - 1] == '0')
@@ -105,7 +102,7 @@ void ProcessXLS(const std::string& fileName)
 			continue;
 		}
 
-		//по дизайнерскому решению вкладки, начинающиеся с восклицательного знака, должны пропускаться как технические:
+		//РїРѕ РґРёР·Р°Р№РЅРµСЂСЃРєРѕРјСѓ СЂРµС€РµРЅРёСЋ РІРєР»Р°РґРєРё, РЅР°С‡РёРЅР°СЋС‰РёРµСЃСЏ СЃ РІРѕСЃРєР»РёС†Р°С‚РµР»СЊРЅРѕРіРѕ Р·РЅР°РєР°, РґРѕР»Р¶РЅС‹ РїСЂРѕРїСѓСЃРєР°С‚СЊСЃСЏ РєР°Рє С‚РµС…РЅРёС‡РµСЃРєРёРµ:
 		if(worksheetName[0] == '!')
 		{
 			continue;
@@ -130,22 +127,22 @@ void ProcessXLS(const std::string& fileName)
 		//JSON:
 		json_spirit::Array jsonSpreadsheet;
 
-		//двумерный массив флагов считываний по вертикали (столбцы):
+		//РґРІСѓРјРµСЂРЅС‹Р№ РјР°СЃСЃРёРІ С„Р»Р°РіРѕРІ СЃС‡РёС‚С‹РІР°РЅРёР№ РїРѕ РІРµСЂС‚РёРєР°Р»Рё (СЃС‚РѕР»Р±С†С‹):
 		std::map<int, bool> columnsPermissions;
 
-		//свойства элементов:
+		//СЃРІРѕР№СЃС‚РІР° СЌР»РµРјРµРЅС‚РѕРІ:
 		std::map<int, std::string> attributes;
 
 		for(int row = 0; row < rowsCount; row++)
 		{
-			//первая строка - определения надобности столбцов:
+			//РїРµСЂРІР°СЏ СЃС‚СЂРѕРєР° - РѕРїСЂРµРґРµР»РµРЅРёСЏ РЅР°РґРѕР±РЅРѕСЃС‚Рё СЃС‚РѕР»Р±С†РѕРІ:
 			if(row < 1)
 			{
 				for(int column = 0; column < columnsCount; column++)
 				{
 					ExcelFormat::BasicExcelCell* cell = worksheet->Cell(row, column);
 
-					//первый столбец для горизонтальных комментариев:
+					//РїРµСЂРІС‹Р№ СЃС‚РѕР»Р±РµС† РґР»СЏ РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅС‹С… С‚СѓРјР±Р»РµСЂ:
 					if(column < 1)
 					{
 
@@ -163,12 +160,12 @@ void ProcessXLS(const std::string& fileName)
 					}
 				}
 			}
-			//если на очереди строка имён свойств элементов:
+			//РµСЃР»Рё РЅР° РѕС‡РµСЂРµРґРё СЃС‚СЂРѕРєР° РёРјС‘РЅ СЃРІРѕР№СЃС‚РІ СЌР»РµРјРµРЅС‚РѕРІ:
 			else if(row == 1)
 			{
 				for(int column = 1; column < columnsCount; column++)
 				{
-					//если столбец является комментарием, то с ним ничего делать не нужно - он никогда не должен использоваться:
+					//РµСЃР»Рё СЃС‚РѕР»Р±РµС† СЏРІР»СЏРµС‚СЃСЏ РєРѕРјРјРµРЅС‚Р°СЂРёРµРј, С‚Рѕ СЃ РЅРёРј РЅРёС‡РµРіРѕ РґРµР»Р°С‚СЊ РЅРµ РЅСѓР¶РЅРѕ - РѕРЅ РЅРёРєРѕРіРґР° РЅРµ РґРѕР»Р¶РµРЅ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊСЃСЏ:
 					if(columnsPermissions[column] == false)
 					{
 						continue;
@@ -198,7 +195,7 @@ void ProcessXLS(const std::string& fileName)
 			}
 			else
 			{
-				//если вся текущая строка НЕ является комментарием:
+				//РµСЃР»Рё РІСЃСЏ С‚РµРєСѓС‰Р°СЏ СЃС‚СЂРѕРєР° РќР• СЏРІР»СЏРµС‚СЃСЏ РєРѕРјРјРµРЅС‚Р°СЂРёРµРј:
 				if(worksheet->Cell(row, 0)->GetInteger() != 0)
 				{
 					//XML:
@@ -206,12 +203,12 @@ void ProcessXLS(const std::string& fileName)
 					//JSON:
 					json_spirit::Object jsonItem;
 
-					//первый столбец зарезервирован для горизонтальных комментариев:
+					//РїРµСЂРІС‹Р№ СЃС‚РѕР»Р±РµС† Р·Р°СЂРµР·РµСЂРІРёСЂРѕРІР°РЅ РґР»СЏ РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅС‹С… С‚СѓРјР±Р»РµСЂРѕРІ:
 					for(int column = 1; column < columnsCount; column++)
 					{
 						ExcelFormat::BasicExcelCell* cell = worksheet->Cell(row, column);
 
-						//если элемент-столбец текущей строки НЕ является комментарием:
+						//РµСЃР»Рё СЌР»РµРјРµРЅС‚-СЃС‚РѕР»Р±РµС† С‚РµРєСѓС‰РµР№ СЃС‚СЂРѕРєРё РќР• СЏРІР»СЏРµС‚СЃСЏ РєРѕРјРјРµРЅС‚Р°СЂРёРµРј:
 						if(columnsPermissions[column] == true)
 						{
 							if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
@@ -271,7 +268,7 @@ void ProcessXLS(const std::string& fileName)
 							case ExcelFormat::BasicExcelCell::FORMULA:
 								{
 									const char* formulaAsString = cell->GetString();
-									//числовые формулы представлены в виде пустой строки если получать их как строку:
+									//С‡РёСЃР»РѕРІС‹Рµ С„РѕСЂРјСѓР»С‹ РїСЂРµРґСЃС‚Р°РІР»РµРЅС‹ РІ РІРёРґРµ РїСѓСЃС‚РѕР№ СЃС‚СЂРѕРєРё РµСЃР»Рё РїРѕР»СѓС‡Р°С‚СЊ РёС… РєР°Рє СЃС‚СЂРѕРєСѓ:
 									if(strlen(formulaAsString) <= 0)
 									{
 										std::string valueAsString = str(boost::format("%f") % cell->GetDouble());
@@ -282,7 +279,7 @@ void ProcessXLS(const std::string& fileName)
 										//JSON:
 										jsonItem.push_back(json_spirit::Pair(attributes[column], valueAsString));
 									}
-									//строковые формулы имеют результирующую строку:
+									//СЃС‚СЂРѕРєРѕРІС‹Рµ С„РѕСЂРјСѓР»С‹ РёРјРµСЋС‚ СЂРµР·СѓР»СЊС‚РёСЂСѓСЋС‰СѓСЋ СЃС‚СЂРѕРєСѓ:
 									else
 									{
 										//XML:
@@ -316,9 +313,9 @@ void ProcessXLS(const std::string& fileName)
 		json.push_back(json_spirit::Pair(worksheetName, jsonSpreadsheet));
 	}
 
-	//запись в XML:
+	//Р·Р°РїРёСЃСЊ РІ XML:
 	xml.save_file(str(boost::format("%s.xml") % xlsName).c_str(), PUGIXML_TEXT("\t"), pugi::format_default, pugi::encoding_wchar);
-	//запись в JSON:
+	//Р·Р°РїРёСЃСЊ РІ JSON:
 	std::ofstream os(str(boost::format("%s.json") % xlsName).c_str());
 	int jsonSettings = json_spirit::raw_utf8;
 	if(prettyPrint)
@@ -344,7 +341,7 @@ int main()
 	FileOutput fileOutput("xls2xj.txt");
 	messenger.add(&fileOutput);
 
-	//чтение конфигурационного файла:
+	//С‡С‚РµРЅРёРµ РєРѕРЅС„РёРіСѓСЂР°С†РёРѕРЅРЅРѕРіРѕ С„Р°Р№Р»Р°:
 	boost::property_tree::ptree config;
 	try
 	{
@@ -358,7 +355,7 @@ int main()
 		MSG(boost::format("E: \"xls2xj.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what());
 	}
 
-	//итерация по всем .xls-файлам в текущей папке:
+	//РёС‚РµСЂР°С†РёСЏ РїРѕ РІСЃРµРј .xls-С„Р°Р№Р»Р°Рј РІ С‚РµРєСѓС‰РµР№ РїР°РїРєРµ:
 	int processed = 0;
 	boost::filesystem::directory_iterator dirEnd;
 	for(boost::filesystem::directory_iterator it("./"); it != dirEnd; it++)
@@ -367,7 +364,7 @@ int main()
 		{
 			std::string fileName = it->path().filename().string();
 			const int size = fileName.size();
-			//если файл формата .xls:
+			//РµСЃР»Рё С„Р°Р№Р» С„РѕСЂРјР°С‚Р° .xls:
 			if(size >= 4)
 			{
 				if(fileName[size - 4] == '.' && 

@@ -3,9 +3,9 @@
 #ifndef TEXT_H
 #define TEXT_H
 
-#include "field.h"
+#include "field_data.h"
 
-class Text: public Field
+class Text: public FieldData
 {
 public:
 	std::string text;

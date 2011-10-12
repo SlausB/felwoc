@@ -3,9 +3,9 @@
 #ifndef INT_H
 #define INT_H
 
-#include "field.h"
+#include "field_data.h"
 
-class Int: public Field
+class Int: public FieldData
 {
 public:
 	int value;

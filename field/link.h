@@ -5,7 +5,7 @@
 
 #include <vector>
 
-#include "field.h"
+#include "field_data.h"
 #include "table.h"
 
 
@@ -24,7 +24,7 @@ public:
 	int count;
 };
 
-class Link: public Field
+class Link: public FieldData
 {
 public:
 	/** Link can be to multiple objects separated with commas.*/

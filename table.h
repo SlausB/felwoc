@@ -8,12 +8,12 @@
 #include "field.h"
 
 
-/** Mathematical table with rows and columns.*/
+/** Mathematical table with rows and columns (spreadsheet or worksheet).*/
 class Table
 {
 public:
 	
-	Table();
+	Table(const std::string& name);
 	
 	/** All possible table types.*/
 	enum
@@ -34,6 +34,9 @@ public:
 	
 	/** All tables fields. Inherited too.*/
 	std::vector<Field*> fields;
+	
+	/** It's name within XLS.*/
+	std::string name;
 };
 
 #endif//#ifndef TABLE_H
