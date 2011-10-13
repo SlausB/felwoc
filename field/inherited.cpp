@@ -1,0 +1,1 @@
+﻿#include "inherited.h"Inherited::Inherited(Field* field): FieldData(field){}

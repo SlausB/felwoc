@@ -1,0 +1,1 @@
+﻿#include "field_data.h"FieldData::FieldData(Field* field): field(field){}

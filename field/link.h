@@ -14,6 +14,9 @@ class Count
 {
 public:
 	
+	Count(Table* table, const int id, const int count);
+	
+	
 	/** To item (spell it row) of which table this link is.*/
 	Table* table;
 	
@@ -27,6 +30,9 @@ public:
 class Link: public FieldData
 {
 public:
+	
+	Link(Field* field);
+	
 	/** Link can be to multiple objects separated with commas.*/
 	std::vector<Count> links;
 };

@@ -8,6 +8,9 @@
 class Text: public FieldData
 {
 public:
+	
+	Text(Field* field, const std::string& text);
+	
 	std::string text;
 };
 

@@ -1,0 +1,1 @@
+﻿#include "text.h"Text(Field* field, const std::string& text): FieldData(field), text(text){}

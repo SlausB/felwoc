@@ -1,0 +1,1 @@
+﻿#ifndef INHERITED_FIELD_H#define INHERITED_FIELD_H#include "field.h"class InheritedField: public Field{public:	/** Table where this field was firstly introduced.*/	Table* parent;};#endif//#ifndef INHERITED_FIELD_H

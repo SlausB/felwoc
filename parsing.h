@@ -42,10 +42,28 @@ public:
 	/** Removes all spaces around each part.*/
 	static Cleanup(std::string& what);
 	
+	/** Predefined rows types.*/
+	enum
+	{
+		ROW_TABLE_TYPE,
+		ROW_FIELDS_TYPES,
+		ROW_FIELDS_COMMENTS,
+		ROW_FIELDS_NAMES,
+		ROW_FIRST_DATA,
+	};
+	
+	/** Predefined columns types.*/
+	enum
+	{
+		COLUMN_ROWS_TOGGLES,	/**< Way to turn off rows from compilation.*/
+		COLUMN_MIN_COLUMN,	/**< There has to be at least one column.*/
+	};
+	
 private:
 	Keywords tableParamsKeywords;
 	Keywords tableTypesKeywords;
 	Keywords fieldKeywords;
+	Keywords serviceFieldsKeywords;
 };
 
 #endif//#ifndef PARSING_H

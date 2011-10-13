@@ -14,7 +14,8 @@
 
 #include <boost/filesystem.hpp>
 
-#include "Windows.h"
+//#include "Windows.h"
+#include <boost/convert.hpp>
 
 ConsoleOutput consoleOutput;
 Messenger messenger(&consoleOutput);
@@ -24,25 +25,28 @@ Messenger messenger(&consoleOutput);
 bool prettyPrint = true;
 
 
-char CHAR_BUFFER[999999];
+//char CHAR_BUFFER[999999];
 
 char* UNDEFINED_NAME = "__undefined_name__";
 char* UNDEFINED_VALUE = "__undefined_value__";
 char* NULL_NAME = "__null_name__";
 char* UNKNOWN_VALUE = "__unknown_value__";
 
-char* ToChar(const wchar_t* source)
+std::string ToChar(const wchar_t* source)
 {
-	//const int codePage = CP_ACP;
+	/*//const int codePage = CP_ACP;
 	const int codePage = CP_UTF8;
-
+	
 	const int result = WideCharToMultiByte(codePage, 0, source, -1, CHAR_BUFFER, sizeof(CHAR_BUFFER), NULL, NULL);
 	if(result <= 0)
 	{
 		MSG(boost::format("E: WideCharToMultiByte() failed.\n"));
 		return NULL;
 	}
-	return CHAR_BUFFER;
+	return CHAR_BUFFER;*/
+	
+	std::wstring temp = source;
+	return boost::to_utf8(temp);
 }
 
 void TruncateValue(std::string& valueAsString)

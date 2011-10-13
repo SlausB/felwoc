@@ -8,6 +8,9 @@
 class Int: public FieldData
 {
 public:
+	
+	Int(Field* field, const int value);
+	
 	int value;
 };
 

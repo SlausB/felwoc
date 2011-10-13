@@ -8,7 +8,10 @@
 class Float: public FieldData
 {
 public:
-	int value;
+	
+	Float(Field* field, const double value);
+	
+	double value;
 };
 
 #endif//#ifndef FLOAT_H

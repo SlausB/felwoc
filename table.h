@@ -32,8 +32,11 @@ public:
 	/** Parent folder or NULL if this folder does not have any parent. Only single inheritance implemented yet.*/
 	Table* parent;
 	
-	/** All tables fields. Inherited too.*/
+	/** All tables fields types. Inherited too. In the same order as within matrix.*/
 	std::vector<Field*> fields;
+	
+	/** All data fields in order [row][column] where columns in the same order as within fields. Can be empty.*/
+	std::vector<std::vector<FieldData*> > matrix;
 	
 	/** It's name within XLS.*/
 	std::string name;
