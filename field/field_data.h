@@ -11,7 +11,7 @@ class FieldData
 {
 public:
 	
-	FieldData(const int row, const int column, Field* field);
+	FieldData(Field* field, const int row, const int column);
 	
 	/** Type of current data.*/
 	Field* field;

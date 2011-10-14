@@ -1,0 +1,1 @@
+﻿	All target platforms generators implementation have to be put here.

@@ -9,7 +9,7 @@ class Text: public FieldData
 {
 public:
 	
-	Text(Field* field, const std::string& text);
+	Text(Field* field, const int row, const int column, const std::string& text);
 	
 	std::string text;
 };

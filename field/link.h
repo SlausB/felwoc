@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "field_data.h"
-#include "table.h"
+#include "../table.h"
 
 
 /** Used within link when reference has "count" attribute.*/
@@ -31,7 +31,7 @@ class Link: public FieldData
 {
 public:
 	
-	Link(const std::string& text, Field* field);
+	Link(Field* field, const int row, const int column, const std::string& text);
 	
 	
 	/** Link's text as it is within XLS.*/

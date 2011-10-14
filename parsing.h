@@ -4,10 +4,16 @@
 #define PARSING_H
 
 #include <string>
+#include <map>
 
 #include "ast.h"
 
-#define FAIL(message) messenger << message; errorsCount++; return;
+#include "output/messenger.h"
+
+#include "excel_format/ExcelFormat.h"
+#include "excel_format/BasicExcel.hpp"
+
+
 #define MSG(message) messenger << message;
 
 class Keywords
@@ -15,12 +21,12 @@ class Keywords
 public:
 	
 	/** Returns -1 if keyword was NOT found, prints error with all possible keywords. Otherwise returns keyword's integer constant.*/
-	int Match(const std::string& context, const std::string& keyword) const;
+	int Match(Messenger& messenger, const std::string& context, const std::string& keyword) const;
 	
 	void Add(const std::string& keyword, const int match);
 	
 	/** Возвращает список возможных вариантов, перечисленных через запятую.*/
-	std::string PrintPossible();
+	std::string PrintPossible() const;
 	
 	std::map<std::string, int> keywords;
 };
@@ -34,13 +40,13 @@ public:
 	
 	/** Compiles XLS.
 	\return true if everything is fine.*/
-	bool ProcessXLS(const std::string& fileName);
+	bool ProcessXLS(AST& ast, Messenger& messenger, const std::string& fileName);
 	
 	/** Splits string, removes all spaces around each part and converts to lowercase.*/
 	static std::vector<std::string> Detach(const std::string& what, const char* delimiters);
 	
 	/** Removes all spaces around each part.*/
-	static Cleanup(std::string& what);
+	static void Cleanup(std::string& what);
 	
 	/** Predefined rows types.*/
 	enum
@@ -59,7 +65,6 @@ public:
 		COLUMN_MIN_COLUMN,	/**< There has to be at least one column.*/
 	};
 	
-private:
 	Keywords tableParamsKeywords;
 	Keywords tableTypesKeywords;
 	Keywords fieldKeywords;

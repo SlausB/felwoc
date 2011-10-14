@@ -10,6 +10,9 @@ class Field
 {
 public:
 	
+	Field(const int type);
+	
+	
 	/** All possible field types.*/
 	enum
 	{

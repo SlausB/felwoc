@@ -1,1 +1,8 @@
-﻿#include "service.h"Service::Service(const int type, const int row, const int column, Field* field): type(type), FieldData(row, column, field){}
+﻿
+
+#include "service.h"
+
+Service::Service(Field* field, const int row, const int column, const int type): FieldData(field, row, column), type(type)
+{
+}
+

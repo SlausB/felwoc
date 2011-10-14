@@ -1,8 +1,9 @@
 ﻿
 #include "excel_format/ExcelFormat.h"
 #include "excel_format/BasicExcel.hpp"
-#include "xml/pugixml.hpp"
-#include "json/json_spirit.h"
+
+/*#include "xml/pugixml.hpp"
+#include "json/json_spirit.h"*/
 
 #include "output/messenger.h"
 #include "output/outputs/console_output.h"
@@ -14,8 +15,10 @@
 
 #include <boost/filesystem.hpp>
 
-//#include "Windows.h"
-#include <boost/convert.hpp>
+#include "targets/target_platform.h"
+#include "targets/as3/as3_target.h"
+
+#include "parsing.h"
 
 ConsoleOutput consoleOutput;
 Messenger messenger(&consoleOutput);
@@ -31,23 +34,6 @@ char* UNDEFINED_NAME = "__undefined_name__";
 char* UNDEFINED_VALUE = "__undefined_value__";
 char* NULL_NAME = "__null_name__";
 char* UNKNOWN_VALUE = "__unknown_value__";
-
-std::string ToChar(const wchar_t* source)
-{
-	/*//const int codePage = CP_ACP;
-	const int codePage = CP_UTF8;
-	
-	const int result = WideCharToMultiByte(codePage, 0, source, -1, CHAR_BUFFER, sizeof(CHAR_BUFFER), NULL, NULL);
-	if(result <= 0)
-	{
-		MSG(boost::format("E: WideCharToMultiByte() failed.\n"));
-		return NULL;
-	}
-	return CHAR_BUFFER;*/
-	
-	std::wstring temp = source;
-	return boost::to_utf8(temp);
-}
 
 void TruncateValue(std::string& valueAsString)
 {
@@ -65,7 +51,7 @@ void TruncateValue(std::string& valueAsString)
 	}
 }
 
-void ProcessXLS(const std::string& fileName)
+/*void ProcessXLS(const std::string& fileName)
 {
 	int errorsCount = 0;
 
@@ -338,7 +324,7 @@ END:
 	{
 		MSG(boost::format("E: \"%s\" processed with errors.\n") % fileName);
 	}
-}
+}*/
 
 int main()
 {
@@ -356,9 +342,16 @@ int main()
 	}
 	catch(std::exception& e)
 	{
-		MSG(boost::format("E: \"xls2xj.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what());
+		messenger << boost::format("E: \"xls2xj.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what();
 	}
-
+	
+	//add generators here:
+	std::vector<TargetPlatform*> platforms;
+	platforms.push_back(new AS3Target);
+	
+	
+	Parsing parsing;
+	
 	//итерация по всем .xls-файлам в текущей папке:
 	int processed = 0;
 	boost::filesystem::directory_iterator dirEnd;
@@ -376,7 +369,14 @@ int main()
 					(fileName[size - 2] == 'l' || fileName[size - 2] == 'L') &&
 					(fileName[size - 1] == 's' || fileName[size - 1] == 'S'))
 				{
-					ProcessXLS(fileName);
+					AST ast;
+					if(parsing.ProcessXLS(ast, messenger, fileName))
+					{
+						for(size_t generatorIndex = 0; generatorIndex < platforms.size(); generatorIndex++)
+						{
+							platforms[generatorIndex]->Generate(ast, messenger);
+						}
+					}
 					processed++;
 				}
 			}

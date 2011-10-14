@@ -83,6 +83,15 @@
   <ItemGroup>
     <ClCompile Include="..\..\excel_format\BasicExcel.cpp" />
     <ClCompile Include="..\..\excel_format\ExcelFormat.cpp" />
+    <ClCompile Include="..\..\field\field.cpp" />
+    <ClCompile Include="..\..\field\field_data.cpp" />
+    <ClCompile Include="..\..\field\float.cpp" />
+    <ClCompile Include="..\..\field\inherited.cpp" />
+    <ClCompile Include="..\..\field\inherited_field.cpp" />
+    <ClCompile Include="..\..\field\int.cpp" />
+    <ClCompile Include="..\..\field\link.cpp" />
+    <ClCompile Include="..\..\field\service.cpp" />
+    <ClCompile Include="..\..\field\text.cpp" />
     <ClCompile Include="..\..\json\json_spirit_reader.cpp" />
     <ClCompile Include="..\..\json\json_spirit_value.cpp" />
     <ClCompile Include="..\..\json\json_spirit_writer.cpp" />
@@ -90,6 +99,8 @@
     <ClCompile Include="..\..\output\messenger.cpp" />
     <ClCompile Include="..\..\output\outputs\console_output.cpp" />
     <ClCompile Include="..\..\output\outputs\file_output.cpp" />
+    <ClCompile Include="..\..\parsing.cpp" />
+    <ClCompile Include="..\..\targets\as3\as3_target.cpp" />
     <ClCompile Include="..\..\xml\pugixml.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

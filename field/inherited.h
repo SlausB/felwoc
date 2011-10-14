@@ -10,7 +10,7 @@ class Inherited: public FieldData
 {
 public:
 	
-	Inherited(Field* field);
+	Inherited(Field* field, const int row, const int column, FieldData* fieldData);
 	
 	
 	/** No recursion, so if field inherited from great parent then this is his field.*/

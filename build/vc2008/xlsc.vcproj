@@ -210,7 +210,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\parsing.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\xml\pugixml.cpp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\table.cpp"
 				>
 			</File>
 		</Filter>
