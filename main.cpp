@@ -370,8 +370,11 @@ int main()
 					(fileName[size - 1] == 's' || fileName[size - 1] == 'S'))
 				{
 					AST ast;
+					messenger.info(boost::format("------------------------------\nFile \"%s\":\n") % fileName);
 					if(parsing.ProcessXLS(ast, messenger, fileName))
 					{
+						messenger.info(boost::format("Successfully compiled.\n"));
+
 						for(size_t generatorIndex = 0; generatorIndex < platforms.size(); generatorIndex++)
 						{
 							platforms[generatorIndex]->Generate(ast, messenger);

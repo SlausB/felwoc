@@ -370,7 +370,7 @@ bool ProcessTablesColumnsTypes(Messenger& messenger, const std::string& context,
 				WorksheetTable* root = NULL;
 				ForEachTable(worksheet->parent, [&typeName, &root, &parentField](WorksheetTable* parent) -> bool
 				{
-					for(int i = 0; i < parent->table->fields.size(); i++)
+					for(size_t i = 0; i < parent->table->fields.size(); i++)
 					{
 						if(parent->table->fields[i]->name.compare(typeName) == 0 && parent->table->fields[i]->type != Field::INHERITED)
 						{
@@ -445,7 +445,7 @@ bool ProcessTablesColumnsTypes(Messenger& messenger, const std::string& context,
 		std::set<std::string> parentFields;
 		ForEachTable(worksheet->parent, [&parentFields](WorksheetTable* parent) -> bool
 		{
-			for(int i = 0; i < parent->table->fields.size(); i++)
+			for(size_t i = 0; i < parent->table->fields.size(); i++)
 			{
 				parentFields.insert(parent->table->fields[i]->name);
 			}
@@ -457,7 +457,7 @@ bool ProcessTablesColumnsTypes(Messenger& messenger, const std::string& context,
 		{
 			bool found = false;
 			
-			for(int thisFieldIndex = 0; thisFieldIndex < table->fields.size(); thisFieldIndex++)
+			for(size_t thisFieldIndex = 0; thisFieldIndex < table->fields.size(); thisFieldIndex++)
 			{
 				if(it->compare(table->fields[thisFieldIndex]->name) == 0)
 				{
@@ -522,7 +522,7 @@ bool ProcessTablesColumnsTypes(Messenger& messenger, const std::string& context,
 						field->name = fieldName;
 					
 						//check that such field was not already defined:
-						for(int i = 0; i < worksheet->table->fields.size(); i++)
+						for(size_t i = 0; i < worksheet->table->fields.size(); i++)
 						{
 							if(worksheet->table->fields[i]->name.compare(fieldName) == 0)
 							{
@@ -661,7 +661,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 				Link* link = new Link(field, rowIndex + 1, columnIndex + 1, text);
 			
 				std::vector<std::string> links = Parsing::Detach(text, ",");
-				for(int linkIndex = 0; linkIndex < links.size(); linkIndex++)
+				for(size_t linkIndex = 0; linkIndex < links.size(); linkIndex++)
 				{
 					//linked object's count:
 					std::vector<std::string> linkAndCount = Parsing::Detach(links[linkIndex], "(");
@@ -712,7 +712,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 				
 					//lookup for linked table name:
 					bool tableFound = false;
-					for(int worksheetIndex = 0; worksheetIndex < worksheets.size(); worksheetIndex++)
+					for(size_t worksheetIndex = 0; worksheetIndex < worksheets.size(); worksheetIndex++)
 					{
 						if(tableAndId[0].compare(worksheets[worksheetIndex].table->name) == 0)
 						{
@@ -729,7 +729,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 							bool idFieldFound = false;
 							ForEachTable(&(worksheets[worksheetIndex]), [&idFieldFound, &table, &parsing, &context, &messenger](WorksheetTable* worksheet) -> bool
 							{
-								for(int targetTableFieldIndex = 0; targetTableFieldIndex < worksheet->table->fields.size(); targetTableFieldIndex++)
+								for(size_t targetTableFieldIndex = 0; targetTableFieldIndex < worksheet->table->fields.size(); targetTableFieldIndex++)
 								{
 									Field* targetTableField = table->fields[targetTableFieldIndex];
 									if(targetTableField->type == Field::SERVICE)
@@ -875,7 +875,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			}
 			
 			std::vector<std::string> pairs = Detach(pair, ",");
-			for(int pairsIndex = 0; pairsIndex < pairs.size(); pairsIndex++)
+			for(size_t pairsIndex = 0; pairsIndex < pairs.size(); pairsIndex++)
 			{
 				std::vector<std::string> paramAndValue = Detach(pairs[pairsIndex], ";");
 				if(paramAndValue.size() != 2)
@@ -885,7 +885,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				}
 				
 				//check if such param was already defined:
-				for(int i = 0; i < definedParams.size(); i++)
+				for(size_t i = 0; i < definedParams.size(); i++)
 				{
 					if(paramAndValue[0].compare(definedParams[i]) == 0)
 					{
@@ -926,7 +926,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	}
 	
 	//connect inherited sheets with each other:
-	for(int wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
+	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
 	{
 		//if worksheet has some parent:
 		if(worksheets[wtIndex].parentName.empty() == false)
@@ -955,7 +955,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	}
 	
 	//check for possible inheritance recursion:
-	for(int wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
+	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
 	{
 		WorksheetTable* worksheet = &(worksheets[wtIndex]);
 		if(worksheet->parent != NULL)
@@ -971,7 +971,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	
 	//reading fields types (first column is for vertical toggles):
 	//to get types of inherited columns from parents it's need to have such parents to be already processed - so process all tables starting from it's parents:
-	for(int wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
+	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
 	{
 		if(ProcessTablesColumnsTypes(messenger, fileName, &(worksheets[wtIndex]), this, worksheets[wtIndex].worksheet->GetTotalCols()) == false)
 		{
@@ -980,7 +980,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	}
 	
 	//fields data:
-	for(int wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
+	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
 	{
 		const int rowsCount = worksheets[wtIndex].worksheet->GetTotalRows();
 		const int columnsCount = worksheets[wtIndex].worksheet->GetTotalCols();
@@ -1031,22 +1031,22 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	}
 	
 	//check links:
-	for(int wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
+	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
 	{
 		WorksheetTable* worksheet = &(worksheets[wtIndex]);
 		
-		for(int linkIndex = 0; linkIndex < worksheet->links.size(); linkIndex++)
+		for(size_t linkIndex = 0; linkIndex < worksheet->links.size(); linkIndex++)
 		{
 			Link* link = worksheet->links[linkIndex];
-			for(int countIndex = 0; countIndex < link->links.size(); countIndex++)
+			for(size_t countIndex = 0; countIndex < link->links.size(); countIndex++)
 			{
 				Count& count = link->links[countIndex];
 				//check that object with such id exists:
 				bool found = false;
-				for(int objectRowIndex = 0; objectRowIndex < count.table->matrix.size(); objectRowIndex++)
+				for(size_t objectRowIndex = 0; objectRowIndex < count.table->matrix.size(); objectRowIndex++)
 				{
 					std::vector<FieldData*>& row = count.table->matrix[objectRowIndex];
-					for(int objectColumnIndex = 0; objectColumnIndex < row.size(); objectColumnIndex++)
+					for(size_t objectColumnIndex = 0; objectColumnIndex < row.size(); objectColumnIndex++)
 					{
 						if(row[objectColumnIndex]->field->type == Field::SERVICE)
 						{
