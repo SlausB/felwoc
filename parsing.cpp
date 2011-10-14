@@ -8,6 +8,14 @@
 
 #include <algorithm>
 
+#include <stdexcept>
+
+
+int ToInt(const double value)
+{
+    if(value >= 0.0f) return (int)(value + 0.5f);
+    else return (int)(value - 0.5f);
+}
 
 int Keywords::Match(const std::string& context, const std::string& keyword) const
 {
@@ -172,16 +180,73 @@ static Parsing::Cleanup(std::string& what)
 	}
 }
 
+/** Throws exception if cell cannot be casted to integer.*/
+int GetInt(ExcelFormat::BasicExcellCell* cell)
+{
+	switch(cell->Type())
+	{
+	case ExcelFormat::BasicExcelCell::INT:
+		return cell->GetInteger();
+	
+	case ExcelFormat::BasicExcelCell::DOUBLE:
+		return ToInt(cell->GetDouble());
+	
+	case ExcelFormat::BasicExcelCell::FORMULA:
+		const char* formulaAsString = cell->GetString();
+		//числовые формулы представлены в виде пустой строки если получать их как строку:
+		if(strlen(formulaAsString) <= 0)
+		{
+			return ToInt(cell->GetDouble());
+		}
+		break;
+	}
+	
+	throw std::runtime_error("cannot be casted to int");
+}
+
+/** Throws exception if cell cannot be casted to float.*/
+double GetFloat(ExcelFormat::BasicExcellCell* cell)
+{
+	switch(cell->Type())
+	{
+	case ExcelFormat::BasicExcelCell::INT:
+		return cell->GetInteger();
+	
+	case ExcelFormat::BasicExcelCell::DOUBLE:
+		return cell->GetDouble();
+	
+	case ExcelFormat::BasicExcelCell::FORMULA:
+		const char* formulaAsString = cell->GetString();
+		//literal formulas represented as empty string it to obtain them as string:
+		if(strlen(formulaAsString) <= 0)
+		{
+			return cell->GetDouble();
+		}
+		break;
+	}
+	
+	throw std::runtime_error("cannot be casted to float");
+}
+
 /** Returns string if cell is of type STRING of WSTRING, otherwise returns NULL.*/
 std::string GetString(ExcelFormat::BasicExcelCell* cell)
 {
-	if(cell->Type() == ExcelFormat::BasicExcelCell::STRING)
+	switch(cell->Type())
 	{
+	case ExcelFormat::BasicExcelCell::STRING:
 		return cell->GetString();
-	}
-	else if(cell ->Type() == ExcelFormat::BasicExcelCell::WSTRING)
-	{
+	
+	case ExcelFormat::BasicExcelCell::WSTRING:
 		return ToChar(cell->GetWString());
+	
+	case ExcelFormat::BasicExcelCell::FORMULA:
+		const char* formulaAsString = cell->GetString();
+		//literal formulas contains resulting string:
+		if(strlen(formulaAsString) > 0)
+		{
+			return formulaAsString
+		}
+		break;
 	}
 	
 	return std::string();
@@ -484,16 +549,17 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 			return NULL;
 		
 		case Service::ID:
-			if(dataCell->Type() == ExcelFormat::BasicExcelCell::INT)
+			Service* service_id = new Service(Service::ID, rowIndex + 1, columnIndex + 1, field);
+			try
 			{
-				return (new Int(field, dataCell->GetInteger()));
+				service_id->fieldData = new Int(field, GetInt(dataCell));
 			}
-			else
+			catch
 			{
-				MSG(boost::format("E: %s: service's \"id\" field at row %d and column %d must have integer data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
+				MSG(boost::format("E: %s: service's \"id\" field at row %d and column %d must have integer (or real-valued, which will be casted to integer) data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
 				return NULL;
 			}
-			break;
+			return service_id;
 		}
 		break;
 	
@@ -511,29 +577,25 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 		break;
 	
 	case Field::FLOAT:
-		if(dataCell->Type() == ExcelFormat::BasicExcelCell::DOUBLE)
+		try
 		{
-			return new Float(field, dataCell->GetDouble());
+			return new Float(field, GetFloat(dataCell));
 		}
-		else if(dataCell->Type() == ExcelFormat::BasicExcelCell::INT)
+		catch
 		{
-			return new Float(field, dataCell->GetInteger());
-		}
-		else
-		{
-			MSG(boost::format("E: %s: real-valued field at row %d and column %d must have real-valued or integer data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
+			MSG(boost::format("E: %s: real-valued field at row %d and column %d must have real-valued or integer data (or formula).\n") % context % (rowIndex + 1) % (columnIndex + 1));
 			return NULL;
 		}
 		break;
 	
 	case Field::INT:
-		if(dataCell->Type() == ExcelFormat::BasicExcelCell::INT)
+		try
 		{
-			return new Int(field, dataCell->GetInteger());
+			return new Int(field, GetInt(dataCell));
 		}
-		else
+		catch
 		{
-			MSG(boost::format("E: %s: integer field at row %d and column %d must have integer data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
+			MSG(boost::format("E: %s: integer field at row %d and column %d must have integer, real-valued (will be rounded up to integer) data or formula.\n") % context % (rowIndex + 1) % (columnIndex + 1));
 			return NULL;
 		}
 		break;
@@ -607,33 +669,43 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 					{
 						Table* table = worksheets[worksheetIndex]->table;
 						
-						//check that target table has special service table which is obligatory for linkage:
-						/// DON'T FORGET TO PROPERLY HANDLE INHERITANCE!
-						bool idFieldFound = false;
-						for(int targetTableFieldIndex = 0; targetTableFieldIndex < table->fields.size(); targetTableFieldIndex++)
+						//it's pointless to link against virtual table:
+						if(table->type == Table::VIRTUAL)
 						{
-							Field* targetTableField = table->fields[targetTableFieldIndex];
-							if(targetTableField->type == Field::SERVICE)
-							{
-								switch(parsing.serviceFieldsKeywords.Match(context, targetTableField->name))
-								{
-								case -1:
-									return NULL;
-								
-								case Service::ID:
-									idFieldFound = true;
-									break;
-								}
-							}
-							
-							if(idFieldFound)
-							{
-								break;
-							}
+							MSG(boost::format("E: %s: link \"%s\" at row %d and column %d within table \"%s\" links against virtual table \"%s\" - it is pointless to link against virtual table.\n") % context % text % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->name % table->name);
+							return NULL;
 						}
+						
+						//check that target table has special service table which is obligatory for linkage:
+						bool idFieldFound = false;
+						ForEachTable(worksheets[worksheetIndex], [&idFieldFound](WorksheetTable* worksheet) -> bool
+						{
+							for(int targetTableFieldIndex = 0; targetTableFieldIndex < worksheet->table->fields.size(); targetTableFieldIndex++)
+							{
+								Field* targetTableField = table->fields[targetTableFieldIndex];
+								if(targetTableField->type == Field::SERVICE)
+								{
+									switch(parsing.serviceFieldsKeywords.Match(context, targetTableField->name))
+									{
+									case -1:
+										return false;
+									
+									case Service::ID:
+										idFieldFound = true;
+										return false;
+									
+									//there are no other service fields types but there can appear:
+									default:
+										return true;
+									}
+								}
+								
+								return true;
+							}
+						});
 						if(idFieldFound == false)
 						{
-							MSG(boost::format("E: %s: ....
+							MSG(boost::format("E: %s: link \"%s\" at row %d and column %d within table \"%s\" links against table \"%s\" which does NOT support it. Target table must have service column \"id\" to support lingage against it.\n") % context % text % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->name % table->name);
 							return NULL;
 						}
 						
@@ -644,7 +716,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 				}
 				if(tableFound == false)
 				{
-					MSG(boost::format("E: %s: table with name \"%s\" was NOT found to link against within link \"%s\" at row %d and column %d within table \"%d\".\n") % context % text % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->name);
+					MSG(boost::format("E: %s: table with name \"%s\" was NOT found to link against it within link \"%s\" at row %d and column %d within table \"%d\".\n") % context % text % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->name);
 					return NULL;
 				}
 			}
@@ -890,7 +962,7 @@ bool Parsing::ProcessXLS(Messenger& messenger, const std::string& fileName)
 				{
 					ExcelFormat::BasicExcelCell* dataCell = worksheet->Cell(rowIndex, columnIndex);
 					
-					FieldData* fieldData = ProcessFieldsData(messenger, fileName, dataCell, field);
+					FieldData* fieldData = ProcessFieldsData(messenger, fileName, dataCell, field, rowIndex, columnIndex);
 					if(fieldData == NULL)
 					{
 						return false;
@@ -906,10 +978,56 @@ bool Parsing::ProcessXLS(Messenger& messenger, const std::string& fileName)
 	{
 		WorksheetTable* worksheet = worksheets[wtIndex];
 		
-		for(int linkIndex = 0; linkIndex = worksheet->links.size(); linkIndex++)
+		for(int linkIndex = 0; linkIndex < worksheet->links.size(); linkIndex++)
 		{
-			
+			Link* link = worksheet->links[linkIndex];
+			for(int countIndex = 0; countIndex < link.links.size(); countIndex++)
+			{
+				Count& count = link.links[countIndex];
+				//check that object with such id exists:
+				bool found = false;
+				for(int objectRowIndex = 0; objectRowIndex < count->table->matrix.size(); objectRowIndex++)
+				{
+					std::vector<FieldData*>& row = count->table->matrix[objectRowIndex];
+					for(int objectColumnIndex = 0; objectColumnIndex < row.size())
+					{
+						if(row[objectColumnIndex]->field->type == Field::SERVICE)
+						{
+							Service* service = (Service*)(row[objectColumnIndex]);
+							if(service->type == Service::ID)
+							{
+								if(service->fieldData->field->type == Field::INT)
+								{
+									if(((Int*)(service->fieldData))->value == count.id)
+									{
+										found = true;
+									}
+									//only one "id" field per table (one id data per row):
+									break;
+								}
+								else
+								{
+									MSG(boost::format("E: %s: PROGRAM ERROR: service field \"id\" holds NOT integer data. Refer to software supplier.\n") % context);
+									return false;
+								}
+							}
+						}
+					}
+					
+					if(found)
+					{
+						break;
+					}
+				}
+				if(found == false)
+				{
+					MSG(boost::format("E: %s: link \"%s\" links against object with id %d within table \"%s\" which does NOT exist.\n") % context % link->text % count.id % count->table->name);
+					return false;
+				}
+			}
 		}
+		
+		worksheet.links.clear();
 	}
 	
 	

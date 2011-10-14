@@ -1,0 +1,1 @@
+﻿#include "service.h"Service::Service(const int type, const int row, const int column, Field* field): type(type), FieldData(row, column, field){}

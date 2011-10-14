@@ -31,7 +31,11 @@ class Link: public FieldData
 {
 public:
 	
-	Link(Field* field);
+	Link(const std::string& text, Field* field);
+	
+	
+	/** Link's text as it is within XLS.*/
+	std::string text;
 	
 	/** Link can be to multiple objects separated with commas.*/
 	std::vector<Count> links;

@@ -1,1 +1,1 @@
-#include "link.h"Count::Count(Table* table, const int id, const int count): table(table), id(id), count(count){}Link::Link(Field* field): FieldData(field){}
+#include "link.h"Count::Count(Table* table, const int id, const int count): table(table), id(id), count(count){}Link::Link(const std::string& text, Field* field): text(text), FieldData(field){}
