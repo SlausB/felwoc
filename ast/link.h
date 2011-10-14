@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "field_data.h"
-#include "../table.h"
+#include "table.h"
 
 
 /** Used within link when reference has "count" attribute.*/

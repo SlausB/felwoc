@@ -10,6 +10,27 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\ast\field.cpp" />
+    <ClCompile Include="..\..\ast\field_data.cpp" />
+    <ClCompile Include="..\..\ast\float.cpp" />
+    <ClCompile Include="..\..\ast\inherited.cpp" />
+    <ClCompile Include="..\..\ast\inherited_field.cpp" />
+    <ClCompile Include="..\..\ast\int.cpp" />
+    <ClCompile Include="..\..\ast\link.cpp" />
+    <ClCompile Include="..\..\ast\service.cpp" />
+    <ClCompile Include="..\..\ast\table.cpp" />
+    <ClCompile Include="..\..\ast\text.cpp" />
+    <ClCompile Include="..\..\excel_format\BasicExcel.cpp" />
+    <ClCompile Include="..\..\excel_format\ExcelFormat.cpp" />
+    <ClCompile Include="..\..\main.cpp" />
+    <ClCompile Include="..\..\output\messenger.cpp" />
+    <ClCompile Include="..\..\output\outputs\console_output.cpp" />
+    <ClCompile Include="..\..\output\outputs\file_output.cpp" />
+    <ClCompile Include="..\..\output\outputs\string_output.cpp" />
+    <ClCompile Include="..\..\parsing.cpp" />
+    <ClCompile Include="..\..\targets\as3\as3_target.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F5352341-FE87-44E0-A8FC-87A64DF61526}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -19,7 +40,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -39,6 +60,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>..\..</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -80,29 +102,6 @@
       <AdditionalLibraryDirectories>$(BOOST_LIB)/lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\excel_format\BasicExcel.cpp" />
-    <ClCompile Include="..\..\excel_format\ExcelFormat.cpp" />
-    <ClCompile Include="..\..\field\field.cpp" />
-    <ClCompile Include="..\..\field\field_data.cpp" />
-    <ClCompile Include="..\..\field\float.cpp" />
-    <ClCompile Include="..\..\field\inherited.cpp" />
-    <ClCompile Include="..\..\field\inherited_field.cpp" />
-    <ClCompile Include="..\..\field\int.cpp" />
-    <ClCompile Include="..\..\field\link.cpp" />
-    <ClCompile Include="..\..\field\service.cpp" />
-    <ClCompile Include="..\..\field\text.cpp" />
-    <ClCompile Include="..\..\json\json_spirit_reader.cpp" />
-    <ClCompile Include="..\..\json\json_spirit_value.cpp" />
-    <ClCompile Include="..\..\json\json_spirit_writer.cpp" />
-    <ClCompile Include="..\..\main.cpp" />
-    <ClCompile Include="..\..\output\messenger.cpp" />
-    <ClCompile Include="..\..\output\outputs\console_output.cpp" />
-    <ClCompile Include="..\..\output\outputs\file_output.cpp" />
-    <ClCompile Include="..\..\parsing.cpp" />
-    <ClCompile Include="..\..\targets\as3\as3_target.cpp" />
-    <ClCompile Include="..\..\xml\pugixml.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

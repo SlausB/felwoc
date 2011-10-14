@@ -6,7 +6,7 @@
 #include <string>
 #include <map>
 
-#include "ast.h"
+#include "ast/ast.h"
 
 #include "output/messenger.h"
 

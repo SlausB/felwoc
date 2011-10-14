@@ -3,7 +3,7 @@
 #ifndef TARGET_PLATFORM_H
 #define TARGET_PLATFORM_H
 
-#include "../ast.h"
+#include "../ast/ast.h"
 
 #include "../output/messenger.h"
 

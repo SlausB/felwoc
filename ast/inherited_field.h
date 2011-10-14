@@ -3,6 +3,7 @@
 #ifndef INHERITED_FIELD_H
 #define INHERITED_FIELD_H
 
+#include "table.h"
 #include "field.h"
 
 class InheritedField: public Field

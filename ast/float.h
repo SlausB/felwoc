@@ -9,7 +9,7 @@ class Float: public FieldData
 {
 public:
 	
-	Float(Field* field, const double value);
+	Float(Field* field, const int row, const int column, const double value);
 	
 	double value;
 };

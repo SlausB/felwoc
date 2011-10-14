@@ -11,15 +11,7 @@
 
 #include <stdexcept>
 
-#include "table.h"
-#include "field/field.h"
-#include "field/inherited_field.h"
-#include "field/link.h"
-#include "field/service.h"
-#include "field/inherited.h"
-#include "field/int.h"
-#include "field/float.h"
-#include "field/text.h"
+#include "ast/ast.h"
 
 #include <boost/program_options/detail/convert.hpp>
 
@@ -596,7 +588,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 				Service* service_id = new Service(field, rowIndex + 1, columnIndex + 1, Service::ID);
 				try
 				{
-					service_id->fieldData = new Int(field, GetInt(dataCell));
+					service_id->fieldData = new Int(field, rowIndex + 1, columnIndex + 1, GetInt(dataCell));
 				}
 				catch(...)
 				{
@@ -646,7 +638,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 		{
 			try
 			{
-				return new Int(field, GetInt(dataCell));
+				return new Int(field, rowIndex + 1, columnIndex + 1, GetInt(dataCell));
 			}
 			catch(...)
 			{

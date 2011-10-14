@@ -9,7 +9,7 @@ class Int: public FieldData
 {
 public:
 	
-	Int(Field* field, const int value);
+	Int(Field* field, const int row, const int column, const int value);
 	
 	int value;
 };
