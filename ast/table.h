@@ -40,8 +40,12 @@ public:
 	/** All data fields in order [row][column] where columns in the same order as within fields. Can be empty.*/
 	std::vector<std::vector<FieldData*> > matrix;
 	
-	/** It's name within XLS.*/
-	std::string name;
+	/** It's name within XLS. Used just for errors reporting.
+	\sa lowercaseName */
+	std::string realName;
+	
+	/** Used for linkage, inheritance and so on - "fxls" is case-insensitive.*/
+	std::string lowercaseName;
 };
 
 #endif//#ifndef TABLE_H

@@ -10,7 +10,7 @@ class InheritedField: public Field
 {
 public:
 	
-	InheritedField(Field* parentField, Table* parent);
+	InheritedField();
 	
 	
 	/** Type of field within inherited parent - no recursion, so if this field inherited from grandparent - this is his field.*/
