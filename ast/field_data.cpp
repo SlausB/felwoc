@@ -6,3 +6,7 @@ FieldData::FieldData(Field* field, const int row, const int column): row(row), c
 {
 }
 
+FieldData::~FieldData()
+{
+}
+

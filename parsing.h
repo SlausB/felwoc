@@ -21,7 +21,7 @@ class Keywords
 public:
 	
 	/** Returns -1 if keyword was NOT found, prints error with all possible keywords. Otherwise returns keyword's integer constant.*/
-	int Match(Messenger& messenger, const std::string& context, const std::string& keyword) const;
+	int Match(Messenger& messenger, const std::string& context, const std::string& tableName, const int rowIndex, const int columnIndex, const std::string& keyword) const;
 	
 	void Add(const std::string& keyword, const int match);
 	

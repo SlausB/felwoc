@@ -12,6 +12,9 @@ class FieldData
 public:
 	
 	FieldData(Field* field, const int row, const int column);
+
+	/** virtual to introduce dynamic_cast */
+	virtual ~FieldData();
 	
 	/** Type of current data.*/
 	Field* field;
