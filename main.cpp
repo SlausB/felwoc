@@ -370,6 +370,7 @@ int main()
 					(fileName[size - 1] == 's' || fileName[size - 1] == 'S'))
 				{
 					AST ast;
+					ast.fileName = fileName;
 					messenger.info(boost::format("------------------------------\nFile \"%s\":\n") % fileName);
 					if(parsing.ProcessXLS(ast, messenger, fileName))
 					{

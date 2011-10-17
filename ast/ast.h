@@ -19,6 +19,10 @@
 class AST
 {
 public:
+
+	/** Name of XLS file from which this "abstract syntax tree" was generated.*/
+	std::string fileName;
+
 	/** All parsed tables. Can be inherited from each other.*/
 	std::vector<Table*> tables;
 };
