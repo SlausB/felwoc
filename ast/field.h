@@ -23,7 +23,6 @@ public:
 		FLOAT,	/**< Real-valued.*/
 		INT,	/**< Integer.*/
 		LINK,	/**< Link to some other row.*/
-		FIELD_NULL,	/**< Must NOT be compiled.*/
 	};
 	
 	/** This fields type.*/

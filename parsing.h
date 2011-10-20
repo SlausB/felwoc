@@ -51,7 +51,9 @@ public:
 	/** Predefined rows types.*/
 	enum
 	{
+		ROW_TABLE_COMMENTARY,
 		ROW_TABLE_TYPE,
+		ROW_TOGGLES,
 		ROW_FIELDS_TYPES,
 		ROW_FIELDS_COMMENTS,
 		ROW_FIELDS_NAMES,
@@ -62,7 +64,16 @@ public:
 	enum
 	{
 		COLUMN_ROWS_TOGGLES,	/**< Way to turn off rows from compilation.*/
-		COLUMN_MIN_COLUMN,	/**< There has to be at least one column.*/
+		COLUMN_TABLE_VALUE,	/**< Where value (which type depends on row) is specified.*/
+		COLUMN_MIN_COLUMN = 1,	/**< There has to be at least one column.*/
+	};
+
+	/** Columns for tables with type "precise".*/
+	enum
+	{
+		COLUMN_PRECISE_TYPE = 1,
+		COLUMN_PRECISE_NAME,
+		COLUMN_PRECISE_VALUE,
 	};
 	
 	Keywords tableParamsKeywords;

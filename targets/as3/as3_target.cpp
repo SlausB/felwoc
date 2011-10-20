@@ -8,6 +8,25 @@
 
 #include <map>
 
+#include <boost/lexical_cast.hpp>
+
+
+
+/** Recursively finds unique name.*/
+std::string Unique(std::string startingName, const int startingUnique, const std::map<Table*, std::string>& where)
+{
+	for(std::map<Table*, std::string>::const_iterator it = where.begin(); it != where.end(); it++)
+	{
+		if(startingName.compare(it->second) == 0)
+		{
+			startingName.push_back('A' + (startingUnique % ('A' - 'Z')));
+			return Unique(startingName, startingUnique + 1, where);
+		}
+	}
+
+	return startingName;
+}
+
 
 bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 {
@@ -22,6 +41,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		std::transform(className.begin(), ++(className.begin()), className.begin(), ::toupper);
 		classNames[table] = className;
 	}
+	
+	std::string indention = "	";
 
 	//generate classes:
 	for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
@@ -36,25 +57,59 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			return false;
 		}
 
+		//package open:
+		file << "package {\n";
+
 		//name:
 		if(table->parent == NULL)
 		{
-			file << str(boost::format("class %s\n") % classNames[table]);
+			file << str(boost::format("%sclass %s\n") % indention % classNames[table]);
 		}
 		else
 		{
-			file << str(boost::format("class %s extends %s\n") % classNames[table] % classNames[table->parent]);
+			file << str(boost::format("%sclass %s extends %s\n") % indention % classNames[table] % classNames[table->parent]);
 		}
 
-		//body:
-		file << "{\n}\n\n";
+		//body open:
+		file << indention << "{\n";
+
+		//fields:
+		for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
+		{
+			if(fieldIndex > 0)
+			{
+				file << indention << indention << "\n";
+			}
+
+			Field* field = table->fields[fieldIndex];
+
+			//commentary:
+			file << indention << indention;
+			file << str(boost::format("/** %s */\n") % field->commentary);
+
+			//field:
+			file << indention << indention;
+
+			//switch(
+		}
+
+		//body close:
+		file << indention << "}\n";
+
+		//package close:
+		file << "}\n\n";
 	}
 
-
-	//generate data:
-	for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
+	//incapsulation:
+	std::string incFileName = str(boost::format("as3/%s.as") % Unique("Infos", 0, classNames));
+	std::ofstream incFile(incFileName.c_str());
+	if(incFile.fail())
 	{
+		messenger << (boost::format("E: %s: AS3: file \"%s\" was NOT opened.\n") % ast.fileName % incFileName);
+		return false;
 	}
+
+
 
 	messenger << (boost::format("I: AS3 code successfully generated.\n"));
 

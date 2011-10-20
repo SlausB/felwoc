@@ -34,10 +34,11 @@ public:
 	/** Parent folder or NULL if this folder does not have any parent. Only single inheritance implemented yet.*/
 	Table* parent;
 	
-	/** All tables fields types. Inherited too. In the same order as within matrix.*/
+	/** All tables fields types. Inherited too. In the same order as within matrix. */
 	std::vector<Field*> fields;
 	
-	/** All data fields in order [row][column] where columns in the same order as within fields. Can be empty.*/
+	/** All data fields in order [row][column] where columns in the same order as within fields. Can be empty.
+	If table is of type PRECISE or SINGLE, then first dimension always has length of 1.*/
 	std::vector<std::vector<FieldData*> > matrix;
 	
 	/** It's name within XLS. Used just for errors reporting.
@@ -46,6 +47,9 @@ public:
 	
 	/** Used for linkage, inheritance and so on - "fxls" is case-insensitive.*/
 	std::string lowercaseName;
+
+	/** Commentary for whole table. Evaluate it as commentary for class.*/
+	std::string commentary;
 };
 
 #endif//#ifndef TABLE_H
