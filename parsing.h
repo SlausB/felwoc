@@ -80,6 +80,7 @@ public:
 	Keywords tableTypesKeywords;
 	Keywords fieldKeywords;
 	Keywords serviceFieldsKeywords;
+	Keywords preciseTableKeywords;
 };
 
 #endif//#ifndef PARSING_H

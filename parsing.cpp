@@ -167,7 +167,11 @@ Parsing::Parsing()
 	fieldKeywords.Add("int", Field::INT);
 	fieldKeywords.Add("link", Field::LINK);
 	
-	serviceFieldsKeywords.Add("id", Service::ID);
+	serviceFieldsKeywords.Add("id", ServiceField::ID);
+
+	preciseTableKeywords.Add("type", Table::Precise::TYPE);
+	preciseTableKeywords.Add("name", Table::Precise::NAME);
+	preciseTableKeywords.Add("value", Table::Precise::VALUE);
 }
 
 std::vector<std::string> Parsing::Detach(const std::string& what, const char* delimiters)
@@ -207,54 +211,6 @@ void Parsing::Cleanup(std::string& what)
 	}
 }
 
-/** Throws exception if cell cannot be casted to integer.*/
-int GetInt(ExcelFormat::BasicExcelCell* cell)
-{
-	switch(cell->Type())
-	{
-	case ExcelFormat::BasicExcelCell::INT:
-		return cell->GetInteger();
-	
-	case ExcelFormat::BasicExcelCell::DOUBLE:
-		return ToInt(cell->GetDouble());
-	
-	case ExcelFormat::BasicExcelCell::FORMULA:
-		const char* formulaAsString = cell->GetString();
-		//числовые формулы представлены в виде пустой строки если получать их как строку:
-		if(strlen(formulaAsString) <= 0)
-		{
-			return ToInt(cell->GetDouble());
-		}
-		break;
-	}
-	
-	throw std::runtime_error("cannot be casted to int");
-}
-
-/** Throws exception if cell cannot be casted to float.*/
-double GetFloat(ExcelFormat::BasicExcelCell* cell)
-{
-	switch(cell->Type())
-	{
-	case ExcelFormat::BasicExcelCell::INT:
-		return cell->GetInteger();
-	
-	case ExcelFormat::BasicExcelCell::DOUBLE:
-		return cell->GetDouble();
-	
-	case ExcelFormat::BasicExcelCell::FORMULA:
-		const char* formulaAsString = cell->GetString();
-		//literal formulas represented as empty string it to obtain them as string:
-		if(strlen(formulaAsString) <= 0)
-		{
-			return cell->GetDouble();
-		}
-		break;
-	}
-	
-	throw std::runtime_error("cannot be casted to float");
-}
-
 /** Returns string if cell is of type STRING of WSTRING, otherwise returns NULL.*/
 std::string GetString(ExcelFormat::BasicExcelCell* cell)
 {
@@ -284,6 +240,83 @@ std::string GetString(ExcelFormat::BasicExcelCell* cell)
 	}
 	
 	return std::string();
+}
+
+/** Throws exception if cell cannot be casted to integer.*/
+int GetInt(ExcelFormat::BasicExcelCell* cell)
+{
+	switch(cell->Type())
+	{
+	case ExcelFormat::BasicExcelCell::INT:
+		return cell->GetInteger();
+	
+	case ExcelFormat::BasicExcelCell::DOUBLE:
+		return ToInt(cell->GetDouble());
+	
+	case ExcelFormat::BasicExcelCell::FORMULA:
+		{
+			const char* formulaAsString = cell->GetString();
+			//numerical formulas interpreted as empty string if to obtain them as string:
+			if(strlen(formulaAsString) <= 0)
+			{
+				return ToInt(cell->GetDouble());
+			}
+			//if value is represented using literals concatination or something else:
+			else
+			{
+				return ToInt(boost::lexical_cast<double, const char*>(formulaAsString));
+			}
+		}
+		break;
+
+	default:
+		std::string asString = GetString(cell);
+		if(asString.empty() == false)
+		{
+			return ToInt(boost::lexical_cast<double, std::string>(asString));
+		}
+		break;
+	}
+	
+	throw std::runtime_error("cannot be casted to int");
+}
+
+/** Throws exception if cell cannot be casted to float.*/
+double GetFloat(ExcelFormat::BasicExcelCell* cell)
+{
+	switch(cell->Type())
+	{
+	case ExcelFormat::BasicExcelCell::INT:
+		return cell->GetInteger();
+	
+	case ExcelFormat::BasicExcelCell::DOUBLE:
+		return cell->GetDouble();
+	
+	case ExcelFormat::BasicExcelCell::FORMULA:
+		{
+			const char* formulaAsString = cell->GetString();
+			//literal formulas represented as empty string it to obtain them as string:
+			if(strlen(formulaAsString) <= 0)
+			{
+				return cell->GetDouble();
+			}
+			else
+			{
+				return boost::lexical_cast<double, const char*>(formulaAsString);
+			}
+		}
+		break;
+
+	default:
+		std::string asString = GetString(cell);
+		if(asString.empty() == false)
+		{
+			return boost::lexical_cast<double, std::string>(asString);
+		}
+		break;
+	}
+	
+	throw std::runtime_error("cannot be casted to float");
 }
 
 /** Recursively checks if inheritance has recursion. Returns true at some error.*/
@@ -607,12 +640,6 @@ bool ProcessColumnsTypes(Messenger& messenger, const std::string& context, Works
 /** Returns generated FieldData or NULL on some error.*/
 FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, WorksheetTable* worksheet, ExcelFormat::BasicExcelCell* dataCell, Parsing* parsing, Field* field, const int rowIndex, const int columnIndex, std::vector<WorksheetTable*>& worksheets)
 {
-	if(dataCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
-	{
-		MSG(boost::format("E: %s: data cell at row %d and column %d within table \"%s\" is undefined.\n") % context % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
-		return NULL;
-	}
-	
 	switch(field->type)
 	{
 	case Field::INHERITED:
@@ -627,50 +654,60 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 		}
 	
 	case Field::SERVICE:
-		switch(parsing->serviceFieldsKeywords.Match(messenger, context, worksheet->table->realName, rowIndex, columnIndex, field->name))
 		{
-		case -1:
-			return NULL;
-		
-		case Service::ID:
+			if(dataCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				Service* service_id = new Service(field, rowIndex + 1, columnIndex + 1, Service::ID);
-				try
-				{
-					service_id->fieldData = new Int(field, rowIndex + 1, columnIndex + 1, GetInt(dataCell));
-				}
-				catch(...)
-				{
-					MSG(boost::format("E: %s: service's \"id\" field at row %d and column %d must have integer (or real-valued, which will be casted to integer) data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
-					return NULL;
-				}
-				return service_id;
+				MSG(boost::format("E: service field data at row %d and column %d within table \"%s\" must be defined.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+				return NULL;
 			}
-			break;
 
-		default:
-			MSG(boost::format("E: %s: PROGRAM ERROR: undefined service field. Refer to software supplier.\n"));
-			return NULL;
+			ServiceField* serviceField = (ServiceField*)field;
+			switch(serviceField->serviceType)
+			{
+			case ServiceField::ID:
+				{
+					Service* service_id = new Service(serviceField, rowIndex + 1, columnIndex + 1);
+					try
+					{
+						service_id->fieldData = new Int(field, rowIndex + 1, columnIndex + 1, GetInt(dataCell));
+					}
+					catch(...)
+					{
+						MSG(boost::format("E: %s: service's \"id\" field at row %d and column %d must have integer (or real-valued, which will be casted to integer) data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
+						return NULL;
+					}
+					return service_id;
+				}
+				break;
+
+			default:
+				MSG(boost::format("E: PROGRAM ERROR: undefined service field type. Refer to software supplier.\n"));
+				return NULL;
+			}
 		}
 		break;
 	
 	case Field::TEXT:
 		{
-			const std::string text = GetString(dataCell);
-			if(text.empty())
+			std::string text;
+			//undefined fields are just empty string:
+			if(dataCell->Type() != ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("E: %s: literal field at row %d and column %d must have literal data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
-				return NULL;
+				text = GetString(dataCell);
 			}
-			else
-			{
-				return new Text(field, rowIndex + 1, columnIndex + 1, text);
-			}
+
+			return new Text(field, rowIndex + 1, columnIndex + 1, text);
 		}
 		break;
 	
 	case Field::FLOAT:
 		{
+			if(dataCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
+			{
+				MSG(boost::format("E: real-valued field at row %d and column %d within table \"%s\" is undefined. It must have real-valued or integral data - type 0 to get rid of this error.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+				return NULL;
+			}
+
 			try
 			{
 				return new Float(field, rowIndex + 1, columnIndex + 1, GetFloat(dataCell));
@@ -685,6 +722,12 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 	
 	case Field::INT:
 		{
+			if(dataCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
+			{
+				MSG(boost::format("E: integral field at row %d and column %d within table \"%s\" is undefined. It must have integral data - type 0 to get rid of this error.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+				return NULL;
+			}
+			
 			try
 			{
 				return new Int(field, rowIndex + 1, columnIndex + 1, GetInt(dataCell));
@@ -699,10 +742,16 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 	
 	case Field::LINK:
 		{
-			const std::string text = GetString(dataCell);
+			std::string text;
+			//undefined cell is just "no links":
+			if(dataCell->Type() != ExcelFormat::BasicExcelCell::UNDEFINED)
+			{
+				text = GetString(dataCell);
+			}
+
 			if(text.empty())
 			{
-				MSG(boost::format("E: %s: link at row %d and column %d has to contain literal data.\n") % context % (rowIndex + 1) % (columnIndex + 1));
+				MSG(boost::format("E: %s: link at row %d and column %d within table \"%s\" must contain literal data.\n") % context % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
 				return NULL;
 			}
 			else
@@ -783,16 +832,14 @@ FieldData* ProcessFieldsData(Messenger& messenger, const std::string& context, W
 									Field* targetTableField = table->fields[targetTableFieldIndex];
 									if(targetTableField->type == Field::SERVICE)
 									{
-										switch(parsing->serviceFieldsKeywords.Match(messenger, context, worksheet->table->realName, -1, -1, targetTableField->name))
+										ServiceField* serviceField = (ServiceField*)targetTableField;
+										switch(serviceField->serviceType)
 										{
-										case -1:
-											return false;
-									
-										case Service::ID:
+										case ServiceField::ID:
 											idFieldFound = true;
 											return false;
-									
-										//there are no other service fields types but there can appear:
+										
+										//there are no other service fields types but there can be later:
 										default:
 											return true;
 										}
@@ -1007,6 +1054,12 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 
 			case Table::PRECISE:
 				{
+					if(table->parent != NULL)
+					{
+						MSG(boost::format("E: table \"%s\" of type \"precise\" inherits table \"%s\". Tables of such cannot inherit other tables.\n") % table->realName % table->parent->realName);
+						return false;
+					}
+
 					if(columnsCount <= COLUMN_PRECISE_VALUE)
 					{
 						MSG(boost::format("E: spreadsheet \"%s\" with type \"precise\" must have at least %d columns.\n") % table->realName % (COLUMN_PRECISE_VALUE + 1));
@@ -1135,6 +1188,13 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 					MSG(boost::format("E: row's %d toggle = %d at column %d within table \"%s\" is wrong. Type 1 if you want this row to be compiled or 0 otherwise.\n") % (rowIndex + 1) % value % (Parsing::COLUMN_ROWS_TOGGLES + 1) % worksheets[wtIndex]->table->realName);
 				}
 			}
+
+			//virtual tables cannot contain any data:
+			if(worksheets[wtIndex]->table->type == Table::VIRTUAL)
+			{
+				MSG(boost::format("E: virtual table \"%s\" contains some data at row %d. Virtual tables cannot contain any data.\n") % worksheets[wtIndex]->table->realName % (rowIndex + 1));
+				return false;
+			}
 			
 			worksheets[wtIndex]->table->matrix.push_back(std::vector<FieldData*>());
 			
@@ -1177,7 +1237,8 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 						if(row[objectColumnIndex]->field->type == Field::SERVICE)
 						{
 							Service* service = (Service*)(row[objectColumnIndex]);
-							if(service->type == Service::ID)
+							ServiceField* serviceField = (ServiceField*)service->field;
+							if(serviceField->serviceType == ServiceField::ID)
 							{
 								Int* intField = dynamic_cast<Int*>(service->fieldData);
 								if(intField != NULL)

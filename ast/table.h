@@ -50,6 +50,19 @@ public:
 
 	/** Commentary for whole table. Evaluate it as commentary for class.*/
 	std::string commentary;
+
+
+	/** Fields of table of type "precise".*/
+	class Precise
+	{
+	public:
+		enum
+		{
+			TYPE,	/**< Such as text, int, float, link...*/
+			NAME,	/**< Field's name.*/
+			VALUE,	/**< Field's value depending on it's type.*/
+		};
+	};
 };
 
 #endif//#ifndef TABLE_H

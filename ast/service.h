@@ -5,22 +5,15 @@
 
 #include "field_data.h"
 
+#include "service_field.h"
+
+
 class Service: public FieldData
 {
 public:
 	
-	Service(Field* field, const int row, const int column, const int type);
+	Service(ServiceField* serviceField, const int row, const int column);
 	
-	
-	/** All service fields types.*/
-	enum
-	{
-		UNDEFINED,
-		ID,	/**< Needed to link against this field from other (or current) tables.*/
-	};
-	
-	/** Type of this field.*/
-	int type;
 	
 	/** Depends on service field type. Surely not of "service" type.*/
 	FieldData* fieldData;
