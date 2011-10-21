@@ -21,9 +21,12 @@ class Keywords
 public:
 	
 	/** Returns -1 if keyword was NOT found, prints error with all possible keywords. Otherwise returns keyword's integer constant.*/
-	int Match(Messenger& messenger, const std::string& context, const std::string& tableName, const int rowIndex, const int columnIndex, const std::string& keyword) const;
+	int Match(Messenger& messenger, const std::string& tableName, const int rowIndex, const int columnIndex, const std::string& keyword) const;
 	
 	void Add(const std::string& keyword, const int match);
+
+	/** Looks for key using value. Returns empty string if was not found. */
+	std::string Find(const int value);
 	
 	/** Возвращает список возможных вариантов, перечисленных через запятую.*/
 	std::string PrintPossible() const;
@@ -66,14 +69,6 @@ public:
 		COLUMN_ROWS_TOGGLES,	/**< Way to turn off rows from compilation.*/
 		COLUMN_TABLE_VALUE,	/**< Where value (which type depends on row) is specified.*/
 		COLUMN_MIN_COLUMN = 1,	/**< There has to be at least one column.*/
-	};
-
-	/** Columns for tables with type "precise".*/
-	enum
-	{
-		COLUMN_PRECISE_TYPE = 1,
-		COLUMN_PRECISE_NAME,
-		COLUMN_PRECISE_VALUE,
 	};
 	
 	Keywords tableParamsKeywords;

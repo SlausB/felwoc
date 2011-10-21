@@ -61,6 +61,7 @@ public:
 			TYPE,	/**< Such as text, int, float, link...*/
 			NAME,	/**< Field's name.*/
 			VALUE,	/**< Field's value depending on it's type.*/
+			COMMENTARY,	/**< Field's commentary.*/
 		};
 	};
 };
