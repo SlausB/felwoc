@@ -328,21 +328,21 @@ END:
 
 int main()
 {
-	FileOutput fileOutput("xls2xj.txt");
+	FileOutput fileOutput("fxlsc.txt");
 	messenger.add(&fileOutput);
 
 	//чтение конфигурационного файла:
 	boost::property_tree::ptree config;
 	try
 	{
-		boost::property_tree::read_ini("xls2xj.ini", config);
+		boost::property_tree::read_ini("fxlsc.ini", config);
 
 		std::string jsonPrint = config.get<std::string>("json_print", "pretty");
 		prettyPrint = jsonPrint.compare("pretty") == 0;
 	}
 	catch(std::exception& e)
 	{
-		messenger << boost::format("E: \"xls2xj.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what();
+		messenger << boost::format("E: \"fxlsc.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what();
 	}
 	
 	//add generators here:
