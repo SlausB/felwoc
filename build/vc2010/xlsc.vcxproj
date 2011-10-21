@@ -89,6 +89,7 @@
     <ClCompile Include="..\..\ast\int.cpp" />
     <ClCompile Include="..\..\ast\link.cpp" />
     <ClCompile Include="..\..\ast\service.cpp" />
+    <ClCompile Include="..\..\ast\service_field.cpp" />
     <ClCompile Include="..\..\ast\table.cpp" />
     <ClCompile Include="..\..\ast\text.cpp" />
     <ClCompile Include="..\..\excel_format\BasicExcel.cpp" />
