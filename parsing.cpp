@@ -246,6 +246,7 @@ Parsing::Parsing()
 	fieldKeywords.Add("float", Field::FLOAT);
 	fieldKeywords.Add("int", Field::INT);
 	fieldKeywords.Add("link", Field::LINK);
+	fieldKeywords.Add("bool", Field::BOOL);
 	
 	serviceFieldsKeywords.Add("id", ServiceField::ID);
 
@@ -547,6 +548,13 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 			{
 				Field* linkField = new Field(Field::LINK);
 				worksheet->table->fields.push_back(linkField);
+			}
+			break;
+
+		case Field::BOOL:
+			{
+				Field* boolField = new Field(Field::BOOL);
+				worksheet->table->fields.push_back(boolField);
 			}
 			break;
 			
@@ -967,6 +975,33 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 			}
 		}
 		break;
+
+	case Field::BOOL:
+		{
+			const char* example = "Type \"true\" or \"1\", \"false\" or \"0\"";
+
+			const std::string value = GetString(dataCell);
+			if(value.empty())
+			{
+				MSG(boost::format("E: boolean field at row %d and column %d within table \"%s\" is undefined. %s.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName % example);
+				return NULL;
+			}
+
+			//true:
+			if(value.compare("true") == 0 || value.compare("1") == 0)
+			{
+				return new Bool(field, rowIndex + 1, columnIndex + 1, true);
+			}
+			else if(value.compare("false") == 0 || value.compare("0") == 0)
+			{
+				return new Bool(field, rowIndex + 1, columnIndex + 1, false);
+			}
+
+			MSG(boost::format("E: boolean field \"%s\" at row %d and column %d within table \"%s\" has wrong format. %s.\n") % value % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName % example);
+			return NULL;
+		}
+		break;
+
 	
 	default:
 		MSG(boost::format("E: PROGRAM ERROR: field's type = %d at row %d and column %d is undefined. Refer to software supplier.\n") % field->type % (rowIndex + 1) % (columnIndex + 1));

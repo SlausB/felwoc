@@ -14,6 +14,7 @@
 #include "int.h"
 #include "float.h"
 #include "text.h"
+#include "bool.h"
 
 /** "Abstract Syntax Tree" which is a result of XLS parsing.*/
 class AST

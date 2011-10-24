@@ -23,6 +23,7 @@ public:
 		FLOAT,	/**< Real-valued.*/
 		INT,	/**< Integer.*/
 		LINK,	/**< Link to some other row.*/
+		BOOL,	/**< Boolean.*/
 	};
 	
 	/** This fields type.*/
