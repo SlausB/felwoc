@@ -20,17 +20,51 @@
 #include <sstream>
 
 
+#define FOR_EACH_WORKSHEET(name) \
+	for(size_t worksheetIndex = 0; worksheetIndex < worksheets.size(); worksheetIndex++) \
+	{ \
+		WorksheetTable* name = worksheets[worksheetIndex]; \
+		if(name->table == NULL) \
+		{ \
+			continue; \
+		}
+
+
 int ToInt(const double value)
 {
     if(value >= 0.0f) return (int)(value + 0.5f);
     else return (int)(value - 0.5f);
 }
 
+/** Forms Excel-like (such as "ABK") column name.*/
 std::string PrintColumn(const int columnIndex)
 {
-	/*const int base = 'Z' - 'A' + 1;
+	const int base = 'Z' - 'A' + 1;
 
-	return str(*/
+	int currentValue = columnIndex + 1;
+	std::string inverted;
+	for(;;)
+	{
+		const int overflow = currentValue / base;
+		const int remainder = currentValue % base;
+		inverted.push_back('A' + remainder - 1);
+		if(overflow > 0)
+		{
+			currentValue = overflow;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	std::string normal;
+	for(int i = (int)inverted.size() - 1; i >= 0 ; i--)
+	{
+		normal.push_back(inverted[i]);
+	}
+
+	return normal;
 }
 
 std::string ToChar(const wchar_t* source)
@@ -59,7 +93,7 @@ int Keywords::Match(Messenger& messenger, const std::string& tableName, const in
 	if(it == keywords.end())
 	{
 		bool notFirst = true;
-		MSG(boost::format("E: keyword \"%s\" (originating from \"%s\") at row %d and column %d within table \"%s\" is undefined. Possible keywords: %s.\n") % lowercase % keyword % (rowIndex + 1) % (columnIndex + 1) % tableName % PrintPossible());
+		MSG(boost::format("E: keyword \"%s\" (originating from \"%s\") at row %d and column %d (%s) within table \"%s\" is undefined. Possible keywords: %s.\n") % lowercase % keyword % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % tableName % PrintPossible());
 		return -1;
 	}
 	else
@@ -487,14 +521,14 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 		ExcelFormat::BasicExcelCell* cell = worksheet->worksheet->Cell(rowIndex, columnIndex);
 		if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 		{
-			MSG(boost::format("E: column's type at row %d and column %d within table \"%s\" is undefined.\n") % (rowIndex + 1) % (columnIndex + 1) % table->realName);
+			MSG(boost::format("E: column's type at row %d and column %d (%s) within table \"%s\" is undefined.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName);
 			return false;
 		}
 		
 		std::string typeName = GetString(cell);
 		if(typeName.empty())
 		{
-			MSG(boost::format("E: cell at row %d and column %d within table \"%s\" is NOT of literal type. It has to be on of the: %s.\n") % (rowIndex + 1) % (columnIndex + 1) % table->realName % parsing->fieldKeywords.PrintPossible());
+			MSG(boost::format("E: cell at row %d and column %d (%s) within table \"%s\" is NOT of literal type. It has to be on of the: %s.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName % parsing->fieldKeywords.PrintPossible());
 			return false;
 		}
 		
@@ -559,7 +593,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 			break;
 			
 		default:
-			MSG(boost::format("E: PROGRAM ERROR: second row and %d column: field type = %d is undefined. Refer to software supplier.\n") % (columnIndex + 1) % parsing->fieldKeywords.Match(messenger, worksheet->table->realName, rowIndex, columnIndex, typeName));
+			MSG(boost::format("E: PROGRAM ERROR: second row and %d (%s) column: field type = %d is undefined. Refer to software supplier.\n") % (columnIndex + 1) % PrintColumn(columnIndex) % parsing->fieldKeywords.Match(messenger, worksheet->table->realName, rowIndex, columnIndex, typeName));
 			return false;
 		}
 	}
@@ -580,14 +614,14 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 					ExcelFormat::BasicExcelCell* commentCell = worksheet->worksheet->Cell(Parsing::ROW_FIELDS_COMMENTS, columnIndex);
 					if(commentCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 					{
-						MSG(boost::format("W: commentary for column %d within table \"%s\" omitted - it is not good.\n") % (columnIndex + 1) % worksheet->table->realName);
+						MSG(boost::format("W: commentary for column %d (%s) at row %d within table \"%s\" omitted - it is not good.\n") % (columnIndex + 1) % PrintColumn(columnIndex) % (int)Parsing::ROW_FIELDS_COMMENTS % worksheet->table->realName);
 					}
 					else
 					{
 						std::string commentary = GetString(commentCell);
 						if(commentary.empty())
 						{
-							MSG(boost::format("W: commentary for column %d within table \"%s\" is not of literal type. It will be skipped.\n") % (columnIndex + 1) % worksheet->table->realName);
+							MSG(boost::format("W: commentary for column %d (%s) at row %d within table \"%s\" is not of literal type. It will be skipped.\n") % (columnIndex + 1) % PrintColumn(columnIndex) % (int)Parsing::ROW_FIELDS_COMMENTS % worksheet->table->realName);
 						}
 						else
 						{
@@ -600,7 +634,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 				ExcelFormat::BasicExcelCell* nameCell = worksheet->worksheet->Cell(Parsing::ROW_FIELDS_NAMES, columnIndex);
 				if(nameCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 				{
-					MSG(boost::format("W: name of field at row %d and column %d within table \"%s\" was NOT cpecified.\n") % (Parsing::ROW_FIELDS_NAMES + 1) % (columnIndex + 1) % worksheet->table->realName);
+					MSG(boost::format("E: name of field at row %d and column %d (%s) within table \"%s\" was NOT cpecified.\n") % (Parsing::ROW_FIELDS_NAMES + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 					return false;
 				}
 				else
@@ -608,7 +642,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 					std::string fieldName = GetString(nameCell);
 					if(fieldName.empty())
 					{
-						MSG(boost::format("E: field's name at row %d and column %d within table \"%s\" is NOT of literal type.\n") % (Parsing::ROW_FIELDS_NAMES + 1) % (columnIndex + 1) % worksheet->table->realName);
+						MSG(boost::format("E: field's name at row %d and column %d (%s) within table \"%s\" is NOT of literal type.\n") % (Parsing::ROW_FIELDS_NAMES + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 						return false;
 					}
 					else
@@ -618,7 +652,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 						{
 							if(worksheet->table->fields[i]->name.compare(fieldName) == 0)
 							{
-								MSG(boost::format("E: field \"%s\" at row %d and column %d within table \"%s\" was already defined.\n") % fieldName % (Parsing::ROW_FIELDS_NAMES + 1) % (columnIndex + 1) % worksheet->table->realName);
+								MSG(boost::format("E: field \"%s\" at row %d and column %d (%s) within table \"%s\" was already defined.\n") % fieldName % (Parsing::ROW_FIELDS_NAMES + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 								return false;
 							}
 						}
@@ -665,6 +699,13 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 							{
 							case -1:
 								return false;
+								break;
+
+							case ServiceField::ID:
+								{
+									ServiceField* serviceField = (ServiceField*)field;
+									serviceField->serviceType = ServiceField::ID;
+								}
 								break;
 							}
 							break;
@@ -738,7 +779,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 	return true;
 }
 
-#define LINK_FORMAT_ERROR messenger << (boost::format("E: link at row %d and column %d within table \"%s\" has wrong format \"%s\"; it has ot be of type \"first_link_table_name:x(y), second_link_table_name:k(l)\", where \"x\" is objects' integral id and \"y\" is integral count; the same for other links separated by commas.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName % text);
+#define LINK_FORMAT_ERROR messenger << (boost::format("E: link at row %d and column %d (%s) within table \"%s\" has wrong format: \"%s\"; it has ot be of type \"first_link_table_name:x(y); second_link_table_name:k(l)\", where \"x\" is objects' integral id and \"y\" is integral count; the same for other links separated by semicolons. If link must not be specified so live field just empty.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % text);
 
 /** Returns generated FieldData or NULL on some error.*/
 FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, ExcelFormat::BasicExcelCell* dataCell, Parsing* parsing, Field* field, const int rowIndex, const int columnIndex, std::vector<WorksheetTable*>& worksheets)
@@ -760,7 +801,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 		{
 			if(dataCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("E: service field data at row %d and column %d within table \"%s\" must be defined.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+				MSG(boost::format("E: service field data at row %d and column %d (%s) within table \"%s\" must be defined.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 				return NULL;
 			}
 
@@ -776,7 +817,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 					}
 					catch(...)
 					{
-						MSG(boost::format("E: service's \"id\" field at row %d and column %d must have integer (or real-valued, which will be casted to integer) data.\n") % (rowIndex + 1) % (columnIndex + 1));
+						MSG(boost::format("E: service's \"id\" field at row %d and column %d (%s) must have integral (or real-valued, which will be casted to integer) data.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
 						return NULL;
 					}
 					return service_id;
@@ -807,7 +848,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 		{
 			if(dataCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("E: real-valued field at row %d and column %d within table \"%s\" is undefined. It must have real-valued or integral data - type 0 to get rid of this error.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+				MSG(boost::format("E: real-valued field at row %d and column %d (%s) within table \"%s\" is undefined. It must have real-valued or integral data - type 0 to get rid of this error.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 				return NULL;
 			}
 
@@ -817,7 +858,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 			}
 			catch(...)
 			{
-				MSG(boost::format("E: real-valued field at row %d and column %d must have real-valued or integer data (or formula).\n") % (rowIndex + 1) % (columnIndex + 1));
+				MSG(boost::format("E: real-valued field at row %d and column %d (%s) must have real-valued or integer data (or formula).\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
 				return NULL;
 			}
 		}
@@ -827,7 +868,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 		{
 			if(dataCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("E: integral field at row %d and column %d within table \"%s\" is undefined. It must have integral data - type 0 to get rid of this error.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+				MSG(boost::format("E: integral field at row %d and column %d (%s) within table \"%s\" is undefined. It must have integral data - type 0 to get rid of this error.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 				return NULL;
 			}
 			
@@ -837,7 +878,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 			}
 			catch(...)
 			{
-				MSG(boost::format("E: integer field at row %d and column %d must have integer, real-valued (will be rounded up to integer) data or formula.\n") % (rowIndex + 1) % (columnIndex + 1));
+				MSG(boost::format("E: integral field at row %d and column %d (%s) must have integral, real-valued (will be rounded up to integer) data or formula.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
 				return NULL;
 			}
 		}
@@ -854,14 +895,14 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 
 			if(text.empty())
 			{
-				MSG(boost::format("E: link at row %d and column %d within table \"%s\" must contain literal data.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+				MSG(boost::format("E: link at row %d and column %d (%s) within table \"%s\" must contain literal data.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 				return NULL;
 			}
 			else
 			{
 				Link* link = new Link(field, rowIndex + 1, columnIndex + 1, text);
 			
-				std::vector<std::string> links = Parsing::Detach(text, ",");
+				std::vector<std::string> links = Parsing::Detach(text, ";");
 				for(size_t linkIndex = 0; linkIndex < links.size(); linkIndex++)
 				{
 					//linked object's count:
@@ -882,7 +923,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 					
 						if(count <= 0)
 						{
-							MSG(boost::format("E: link has count attribute = %d. It has to be at least more than zero.\n") % count);
+							MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" has count attribute = %d. It has to be at least more than zero.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % count);
 							return NULL;
 						}
 					}
@@ -913,16 +954,15 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 				
 					//lookup for linked table name:
 					bool tableFound = false;
-					for(size_t worksheetIndex = 0; worksheetIndex < worksheets.size(); worksheetIndex++)
-					{
-						if(tableAndId[0].compare(worksheets[worksheetIndex]->table->lowercaseName) == 0)
+					FOR_EACH_WORKSHEET(worksheetTable)
+						if(tableAndId[0].compare(worksheetTable->table->lowercaseName) == 0)
 						{
-							Table* table = worksheets[worksheetIndex]->table;
+							Table* table = worksheetTable->table;
 						
 							//it's pointless to link against virtual table:
 							if(table->type == Table::VIRTUAL)
 							{
-								MSG(boost::format("E: link \"%s\" at row %d and column %d within table \"%s\" links against virtual table \"%s\" - it is pointless to link against virtual table.\n") % text % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName % table->realName);
+								MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" links against virtual table \"%s\" - it is pointless to link against virtual tables.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % table->realName);
 								return NULL;
 							}
 						
@@ -953,7 +993,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 							});
 							if(idFieldFound == false)
 							{
-								MSG(boost::format("E: link \"%s\" at row %d and column %d within table \"%s\" links against table \"%s\" which does NOT support it. Target table must have service column \"id\" to support lingage against it.\n") % text % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName % table->realName);
+								MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" links against table \"%s\" which does NOT support it. Target table must have service column \"id\" to support linkage against it.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % table->realName);
 								return NULL;
 							}
 						
@@ -964,7 +1004,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 					}
 					if(tableFound == false)
 					{
-						MSG(boost::format("E: table with name \"%s\" was NOT found to link against it within link \"%s\" at row %d and column %d within table \"%d\".\n") % tableAndId[0] % text % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName);
+						MSG(boost::format("E: table with name \"%s\" was NOT found to link against it within link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%d\".\n") % tableAndId[0] % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 						return NULL;
 					}
 				}
@@ -983,7 +1023,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 			const std::string value = GetString(dataCell);
 			if(value.empty())
 			{
-				MSG(boost::format("E: boolean field at row %d and column %d within table \"%s\" is undefined. %s.\n") % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName % example);
+				MSG(boost::format("E: boolean field at row %d and column %d (%s) within table \"%s\" is undefined. %s.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % example);
 				return NULL;
 			}
 
@@ -997,14 +1037,14 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 				return new Bool(field, rowIndex + 1, columnIndex + 1, false);
 			}
 
-			MSG(boost::format("E: boolean field \"%s\" at row %d and column %d within table \"%s\" has wrong format. %s.\n") % value % (rowIndex + 1) % (columnIndex + 1) % worksheet->table->realName % example);
+			MSG(boost::format("E: boolean field \"%s\" at row %d and column %d (%s) within table \"%s\" has wrong format. %s.\n") % value % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % example);
 			return NULL;
 		}
 		break;
 
 	
 	default:
-		MSG(boost::format("E: PROGRAM ERROR: field's type = %d at row %d and column %d is undefined. Refer to software supplier.\n") % field->type % (rowIndex + 1) % (columnIndex + 1));
+		MSG(boost::format("E: PROGRAM ERROR: field's type = %d at row %d and column %d (%s) is undefined. Refer to software supplier.\n") % field->type % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
 		return NULL;
 	}
 }
@@ -1099,7 +1139,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			ExcelFormat::BasicExcelCell* cell = worksheet->Cell(ROW_TABLE_COMMENTARY, COLUMN_TABLE_VALUE);
 			if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("W: spreadsheet's \"%s\" commentary was NOT specified at row %d and column %d. It is not good.\n") % table->realName % (ROW_TABLE_COMMENTARY + 1) % (COLUMN_TABLE_VALUE + 1));
+				MSG(boost::format("W: spreadsheet's \"%s\" commentary was NOT specified at row %d and column %d (%s). It is not good.\n") % table->realName % (ROW_TABLE_COMMENTARY + 1) % (COLUMN_TABLE_VALUE + 1) % PrintColumn(COLUMN_TABLE_VALUE));
 			}
 			else
 			{
@@ -1117,14 +1157,14 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			ExcelFormat::BasicExcelCell* cell = worksheet->Cell(rowIndex, columnIndex);
 			if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("E: spreadsheet's \"%s\" params at row %d and column %d is undefined. At least \"type\" param have to be specified.\n") % table->realName % (rowIndex + 1) % (columnIndex + 1));
+				MSG(boost::format("E: spreadsheet's \"%s\" params at row %d and column %d (%s) is undefined. At least \"type\" param have to be specified.\n") % table->realName % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
 				return false;
 			}
 			
 			const std::string pair = GetString(cell);
 			if(pair.empty())
 			{
-				MSG(boost::format("E: spreadsheet's \"%s\" param at row %d and column %d is NOT literal.\n") % table->realName % (rowIndex + 1) % (columnIndex + 1));
+				MSG(boost::format("E: spreadsheet's \"%s\" param at row %d and column %d (%s) is NOT literal.\n") % table->realName % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
 				return false;
 			}
 			
@@ -1134,7 +1174,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				std::vector<std::string> paramAndValue = Detach(pairs[pairIndex], ":");
 				if(paramAndValue.size() != 2)
 				{
-					MSG(boost::format("E: param \"%s\" (it's part \"%s\") at row %d and column %d within table \"%s\" is wrong. It has to be of type \"param:value\".\n") % pair % pairs[pairIndex] % (rowIndex + 1) % (columnIndex + 1) % table->realName);
+					MSG(boost::format("E: param \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" is wrong. It has to be of type \"param:value\".\n") % pair % pairs[pairIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName);
 					return false;
 				}
 				
@@ -1143,7 +1183,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				{
 					if(paramAndValue[0].compare(definedParams[i].param) == 0)
 					{
-						MSG(boost::format("E: param \"%s\" at row %d and column %d within worksheet \"%s\" was already defined at row %d and column %d.\n") % paramAndValue[0] % (rowIndex + 1) % (columnIndex + 1) % table->realName % (definedParams[i].columnIndex + 1));
+						MSG(boost::format("E: param \"%s\" at row %d and column %d (%s) within worksheet \"%s\" was already defined at row %d and column %d.\n") % paramAndValue[0] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName % (definedParams[i].columnIndex + 1));
 						return false;
 					}
 				}
@@ -1182,7 +1222,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			{
 			case Table::UNTYPED:
 				{
-					MSG(boost::format("E: spreadsheet's \"%s\" type was NOT specified at row %d and column %d - type something like \"type: many\".\n") % table->realName % (rowIndex + 1) % (columnIndex + 1));
+					MSG(boost::format("E: spreadsheet's \"%s\" type was NOT specified at row %d and column %d (%s) - type something like \"type: many\".\n") % table->realName % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
 					return false;
 				}
 				break;
@@ -1191,7 +1231,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				{
 					if(table->parent != NULL)
 					{
-						MSG(boost::format("E: table \"%s\" of type \"precise\" inherits table \"%s\". Tables of such cannot inherit other tables.\n") % table->realName % table->parent->realName);
+						MSG(boost::format("E: table \"%s\" of type \"precise\" inherits table \"%s\". Tables of such type cannot inherit other tables.\n") % table->realName % table->parent->realName);
 						return false;
 					}
 				}
@@ -1209,7 +1249,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			ExcelFormat::BasicExcelCell* cell = worksheet->Cell(rowIndex, columnIndex);
 			if(cell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("E: column toggle at row %d and column %d within table \"%s\" is undefined. %s.\n") % (rowIndex + 1) % (columnIndex + 1) % table->realName % example);
+				MSG(boost::format("E: column toggle at row %d and column %d (%s) within table \"%s\" is undefined. %s.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName % example);
 				return false;
 			}
 
@@ -1227,40 +1267,32 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 					break;
 
 				default:
-					MSG(boost::format("E: column toggle = %d at row %d and column %d within table \"%s\" has wrong format. %s.\n") % value % (rowIndex + 1) % (columnIndex + 1) % table->realName % example);
+					MSG(boost::format("E: column toggle = %d at row %d and column %d (%s) within table \"%s\" has wrong format. %s.\n") % value % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName % example);
 					return false;
 				}
 			}
 			catch(...)
 			{
-				MSG(boost::format("E: column toggle at row %d and column %d within table \"%s\" is NOT of numeral type. %s.\n") % (rowIndex + 1) % (columnIndex + 1) % table->realName % example);
+				MSG(boost::format("E: column toggle at row %d and column %d (%s) within table \"%s\" is NOT of numeral type. %s.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName % example);
 				return false;
 			}
 		}
 	}
 	
 	//connect inherited sheets with each other:
-	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
-	{
-		//if worksheet must not be compiled:
-		if(worksheets[wtIndex]->table == NULL)
-		{
-			continue;
-		}
-
+	FOR_EACH_WORKSHEET(worksheet)
 		//if worksheet has some parent:
-		if(worksheets[wtIndex]->parentName.empty() == false)
+		if(worksheet->parentName.empty() == false)
 		{
 			bool found = false;
 			
 			//find worksheet with such name:
-			for(size_t parentWorksheetIndex = 0; parentWorksheetIndex < worksheets.size(); parentWorksheetIndex++)
-			{
+			FOR_EACH_WORKSHEET(parentWorksheet)
 				//found:
-				if(worksheets[wtIndex]->parentName.compare(worksheets[parentWorksheetIndex]->table->lowercaseName) == 0)
+				if(worksheet->parentName.compare(parentWorksheet->table->lowercaseName) == 0)
 				{
-					worksheets[wtIndex]->table->parent = worksheets[parentWorksheetIndex]->table;
-					worksheets[wtIndex]->parent = worksheets[parentWorksheetIndex];
+					worksheet->table->parent = parentWorksheet->table;
+					worksheet->parent = parentWorksheet;
 					found = true;
 					break;
 				}
@@ -1268,22 +1300,14 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			
 			if(found == false)
 			{
-				MSG(boost::format("E: parent \"%s\" for spreadsheet \"%s\" does NOT exist.\n") % worksheets[wtIndex]->parentName % worksheets[wtIndex]->table->realName);
+				MSG(boost::format("E: parent \"%s\" for spreadsheet \"%s\" does NOT exist.\n") % worksheet->parentName % worksheet->table->realName);
 				return false;
 			}
 		}
 	}
 	
 	//check for possible inheritance recursion:
-	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
-	{
-		//if worksheet must not be compiled:
-		if(worksheets[wtIndex]->table == NULL)
-		{
-			continue;
-		}
-
-		WorksheetTable* worksheet = worksheets[wtIndex];
+	FOR_EACH_WORKSHEET(worksheet)
 		std::vector<WorksheetTable*> chain;
 		if(WatchRecursiveInheritance(messenger, chain, worksheet))
 		{
@@ -1293,59 +1317,45 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	
 	//reading fields types:
 	//to get types of inherited columns from parents it's need to have such parents to be already processed - so process all tables starting from it's parents:
-	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
-	{
-		//if worksheet must not be compiled:
-		if(worksheets[wtIndex]->table == NULL)
-		{
-			continue;
-		}
-		
-		if(ProcessColumnsTypes(messenger, worksheets[wtIndex], this, worksheets[wtIndex]->columnsCount) == false)
+	FOR_EACH_WORKSHEET(worksheet)
+		if(ProcessColumnsTypes(messenger, worksheet, this, worksheet->columnsCount) == false)
 		{
 			return false;
 		}
 	}
 	
 	//fields data:
-	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
-	{
-		//if worksheet must not be compiled:
-		if(worksheets[wtIndex]->table == NULL)
-		{
-			continue;
-		}
-
+	FOR_EACH_WORKSHEET(worksheet)
 		//for tables of type "precise":
 		//redirection from column specification to column index (constant from Table::Precise::...):
 		std::map<int, int> preciseSpecToColumn;
-		if(worksheets[wtIndex]->table->type == Table::PRECISE)
+		if(worksheet->table->type == Table::PRECISE)
 		{
 			std::set<int> definedColumns;
 
 			//look for all needed cells:
-			for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < worksheets[wtIndex]->columnsCount; columnIndex++)
+			for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < worksheet->columnsCount; columnIndex++)
 			{
 				//skip commentary columns:
-				if(worksheets[wtIndex]->columnToggles.find(columnIndex) != worksheets[wtIndex]->columnToggles.end())
+				if(worksheet->columnToggles.find(columnIndex) != worksheet->columnToggles.end())
 				{
 					continue;
 				}
 
-				ExcelFormat::BasicExcelCell* whatCell = worksheets[wtIndex]->worksheet->Cell(Parsing::ROW_FIELDS_TYPES, columnIndex);
+				ExcelFormat::BasicExcelCell* whatCell = worksheet->worksheet->Cell(Parsing::ROW_FIELDS_TYPES, columnIndex);
 
 				const std::string what = GetString(whatCell);
 				if(what.empty())
 				{
-					MSG(boost::format("E: type cell at row %d and column %d within table \"%s\" is NOT of literal type. It must be one of: %s.\n") % (Parsing::ROW_FIELDS_TYPES + 1) % (columnIndex + 1) % worksheets[wtIndex]->table->realName % preciseTableKeywords.PrintPossible());
+					MSG(boost::format("E: type cell at row %d and column %d (%s) within table \"%s\" is NOT of literal type. It must be one of: %s.\n") % (Parsing::ROW_FIELDS_TYPES + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % preciseTableKeywords.PrintPossible());
 					return false;
 				}
 
-				const int matched = preciseTableKeywords.Match(messenger, worksheets[wtIndex]->table->realName, Parsing::ROW_FIELDS_TYPES, columnIndex, what);
+				const int matched = preciseTableKeywords.Match(messenger, worksheet->table->realName, Parsing::ROW_FIELDS_TYPES, columnIndex, what);
 
 				if(definedColumns.find(matched) != definedColumns.end())
 				{
-					MSG(boost::format("E: type column \"%s\" at row %d and column %d within table \"%s\" was already defined.\n") % preciseTableKeywords.Find(matched) % (Parsing::ROW_FIELDS_TYPES + 1) % (columnIndex + 1) % worksheets[wtIndex]->table->realName);
+					MSG(boost::format("E: type column \"%s\" at row %d and column %d (%s) within table \"%s\" was already defined.\n") % preciseTableKeywords.Find(matched) % (Parsing::ROW_FIELDS_TYPES + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 					return false;
 				}
 
@@ -1378,19 +1388,19 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 
 				if(found == false)
 				{
-					MSG(boost::format("E: column of type \"%s\" within table \"%s\" of type \"precise\" was NOT specified.\n") % needed->first % worksheets[wtIndex]->table->realName);
+					MSG(boost::format("E: column of type \"%s\" within table \"%s\" of type \"precise\" was NOT specified.\n") % needed->first % worksheet->table->realName);
 					return false;
 				}
 			}
 		}
 
-		for(int rowIndex = ROW_FIRST_DATA; rowIndex < worksheets[wtIndex]->rowsCount; rowIndex++)
+		for(int rowIndex = ROW_FIRST_DATA; rowIndex < worksheet->rowsCount; rowIndex++)
 		{
 			//check if this row was toggled off:
-			ExcelFormat::BasicExcelCell* toggleCell = worksheets[wtIndex]->worksheet->Cell(rowIndex, Parsing::COLUMN_ROWS_TOGGLES);
+			ExcelFormat::BasicExcelCell* toggleCell = worksheet->worksheet->Cell(rowIndex, Parsing::COLUMN_ROWS_TOGGLES);
 			if(toggleCell->Type() == ExcelFormat::BasicExcelCell::UNDEFINED)
 			{
-				MSG(boost::format("E: row's %d toggle within table \"%s\" is undefined. Type 1 if you want this row to be compiled or 0 otherwise.\n") % (rowIndex + 1) % worksheets[wtIndex]->table->realName);
+				MSG(boost::format("E: row's %d toggle at column %d (%s) within table \"%s\" is undefined. Type 1 if you want this row to be compiled or 0 otherwise.\n") % (rowIndex + 1) % (int)Parsing::COLUMN_ROWS_TOGGLES % PrintColumn(Parsing::COLUMN_ROWS_TOGGLES) % worksheet->table->realName);
 				return false;
 			}
 			else if(toggleCell->Type() == ExcelFormat::BasicExcelCell::INT)
@@ -1405,40 +1415,40 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				}
 				else
 				{
-					MSG(boost::format("E: row's %d toggle = %d at column %d within table \"%s\" is wrong. Type 1 if you want this row to be compiled or 0 otherwise.\n") % (rowIndex + 1) % value % (Parsing::COLUMN_ROWS_TOGGLES + 1) % worksheets[wtIndex]->table->realName);
+					MSG(boost::format("E: row's %d toggle = %d at column %d (%s) within table \"%s\" is wrong. Type 1 if you want this row to be compiled or 0 otherwise.\n") % (rowIndex + 1) % value % (Parsing::COLUMN_ROWS_TOGGLES + 1) % PrintColumn(Parsing::COLUMN_ROWS_TOGGLES) % worksheet->table->realName);
 				}
 			}
 
 			//virtual tables cannot contain any data:
-			if(worksheets[wtIndex]->table->type == Table::VIRTUAL)
+			if(worksheet->table->type == Table::VIRTUAL)
 			{
-				MSG(boost::format("E: virtual table \"%s\" contains some data at row %d. Virtual tables cannot contain any data.\n") % worksheets[wtIndex]->table->realName % (rowIndex + 1));
+				MSG(boost::format("E: virtual table \"%s\" contains some data at row %d. Virtual tables cannot contain any data.\n") % worksheet->table->realName % (rowIndex + 1));
 				return false;
 			}
 			
 			//relation within "precise" tables is inverted:
-			if(worksheets[wtIndex]->table->type == Table::PRECISE)
+			if(worksheet->table->type == Table::PRECISE)
 			{
-				ExcelFormat::BasicExcelCell* typeCell = worksheets[wtIndex]->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::TYPE]);
-				ExcelFormat::BasicExcelCell* nameCell = worksheets[wtIndex]->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::NAME]);
-				ExcelFormat::BasicExcelCell* valueCell = worksheets[wtIndex]->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::VALUE]);
-				ExcelFormat::BasicExcelCell* commentaryCell = worksheets[wtIndex]->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::COMMENTARY]);
+				ExcelFormat::BasicExcelCell* typeCell = worksheet->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::TYPE]);
+				ExcelFormat::BasicExcelCell* nameCell = worksheet->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::NAME]);
+				ExcelFormat::BasicExcelCell* valueCell = worksheet->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::VALUE]);
+				ExcelFormat::BasicExcelCell* commentaryCell = worksheet->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::COMMENTARY]);
 
 				//field's type:
 				Field* field = NULL;
 				const std::string typeName = GetString(typeCell);
 				if(typeName.empty())
 				{
-					MSG(boost::format("E: type cell at row %d and column %d within table \"%s\" must be of literal type.\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % worksheets[wtIndex]->table->realName);
+					MSG(boost::format("E: type cell at row %d and column %d (%s) within table \"%s\" must be of literal type.\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::TYPE]) % worksheet->table->realName);
 					return false;
 				}
-				switch(fieldKeywords.Match(messenger, worksheets[wtIndex]->table->realName, rowIndex, preciseSpecToColumn[Table::Precise::TYPE], typeName))
+				switch(fieldKeywords.Match(messenger, worksheet->table->realName, rowIndex, preciseSpecToColumn[Table::Precise::TYPE], typeName))
 				{
 				case -1:
 					return false;
 
 				case Field::SERVICE:
-					MSG(boost::format("E: cell of type \"service\" at row %d and column %d within table \"%s\" is wrong for tables of type \"%s\".\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % worksheets[wtIndex]->table->realName % tableTypesKeywords.Find(worksheets[wtIndex]->table->type));
+					MSG(boost::format("E: cell of type \"service\" at row %d and column %d (%s) within table \"%s\" is wrong for tables of type \"%s\".\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::TYPE]) % worksheet->table->realName % tableTypesKeywords.Find(worksheet->table->type));
 					return false;
 					
 				case Field::TEXT:
@@ -1458,7 +1468,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 					break;
 
 				default:
-					MSG(boost::format("E: UNDEFINED ERROR: something typed within field of type \"%s\" at row %d and column %d within table \"%s\" of type \"%s\" is undefined. Refer to software supplier for more info.\n") % preciseTableKeywords.Find(Table::Precise::TYPE) % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % worksheets[wtIndex]->table->realName % tableTypesKeywords.Find(worksheets[wtIndex]->table->type));;
+					MSG(boost::format("E: UNDEFINED ERROR: something typed within field of type \"%s\" at row %d and column %d (%s) within table \"%s\" of type \"%s\" is undefined. Refer to software supplier for more info.\n") % preciseTableKeywords.Find(Table::Precise::TYPE) % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::TYPE]) % worksheet->table->realName % tableTypesKeywords.Find(worksheet->table->type));
 					return false;
 				}
 
@@ -1466,12 +1476,12 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				field->name = GetString(nameCell);
 				if(field->name.empty())
 				{
-					MSG(boost::format("E: field's name at row %d and column %d within table \"%s\" is NOT of literal type.\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::NAME] + 1) % worksheets[wtIndex]->table->realName);
+					MSG(boost::format("E: field's name at row %d and column %d (%s) within table \"%s\" is NOT of literal type.\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::NAME] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::NAME]) % worksheet->table->realName);
 					return false;
 				}
 
 				//field's data:
-				FieldData* fieldData = ProcessFieldsData(messenger, worksheets[wtIndex], valueCell, this, field, rowIndex, preciseSpecToColumn[Table::Precise::VALUE], worksheets);
+				FieldData* fieldData = ProcessFieldsData(messenger, worksheet, valueCell, this, field, rowIndex, preciseSpecToColumn[Table::Precise::VALUE], worksheets);
 				if(fieldData == NULL)
 				{
 					return false;
@@ -1481,27 +1491,27 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				field->commentary = GetString(commentaryCell);
 				if(field->commentary.empty())
 				{
-					MSG(boost::format("E: field's commentary at row %d and column %d within table \"%s\" is NOT of literal type.\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::COMMENTARY] + 1) % worksheets[wtIndex]->table->realName);
+					MSG(boost::format("E: field's commentary at row %d and column %d (%s) within table \"%s\" is NOT of literal type.\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::COMMENTARY] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::COMMENTARY]) % worksheet->table->realName);
 					return false;
 				}
 			}
 			else
 			{
-				worksheets[wtIndex]->table->matrix.push_back(std::vector<FieldData*>());
+				worksheet->table->matrix.push_back(std::vector<FieldData*>());
 
-				for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < worksheets[wtIndex]->columnsCount; columnIndex++)
+				for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < worksheet->columnsCount; columnIndex++)
 				{
-					Field* field = worksheets[wtIndex]->FieldFromColumn(messenger, columnIndex);
+					Field* field = worksheet->FieldFromColumn(messenger, columnIndex);
 					if(field != NULL)
 					{
-						ExcelFormat::BasicExcelCell* dataCell = worksheets[wtIndex]->worksheet->Cell(rowIndex, columnIndex);
+						ExcelFormat::BasicExcelCell* dataCell = worksheet->worksheet->Cell(rowIndex, columnIndex);
 					
-						FieldData* fieldData = ProcessFieldsData(messenger, worksheets[wtIndex], dataCell, this, field, rowIndex, columnIndex, worksheets);
+						FieldData* fieldData = ProcessFieldsData(messenger, worksheet, dataCell, this, field, rowIndex, columnIndex, worksheets);
 						if(fieldData == NULL)
 						{
 							return false;
 						}
-						worksheets[wtIndex]->table->matrix.back().push_back(fieldData);
+						worksheet->table->matrix.back().push_back(fieldData);
 					}
 				}
 			}
@@ -1509,16 +1519,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	}
 	
 	//check links:
-	for(size_t wtIndex = 0; wtIndex < worksheets.size(); wtIndex++)
-	{
-		//if worksheet must not be compiled:
-		if(worksheets[wtIndex]->table == NULL)
-		{
-			continue;
-		}
-		
-		WorksheetTable* worksheet = worksheets[wtIndex];
-		
+	FOR_EACH_WORKSHEET(worksheet)
 		for(size_t linkIndex = 0; linkIndex < worksheet->links.size(); linkIndex++)
 		{
 			Link* link = worksheet->links[linkIndex];
