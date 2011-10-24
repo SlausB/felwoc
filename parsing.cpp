@@ -893,126 +893,118 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 				text = GetString(dataCell);
 			}
 
-			if(text.empty())
-			{
-				MSG(boost::format("E: link at row %d and column %d (%s) within table \"%s\" must contain literal data.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
-				return NULL;
-			}
-			else
-			{
-				Link* link = new Link(field, rowIndex + 1, columnIndex + 1, text);
+			Link* link = new Link(field, rowIndex + 1, columnIndex + 1, text);
 			
-				std::vector<std::string> links = Parsing::Detach(text, ";");
-				for(size_t linkIndex = 0; linkIndex < links.size(); linkIndex++)
+			std::vector<std::string> links = Parsing::Detach(text, ";");
+			for(size_t linkIndex = 0; linkIndex < links.size(); linkIndex++)
+			{
+				//linked object's count:
+				std::vector<std::string> linkAndCount = Parsing::Detach(links[linkIndex], "(");
+				int count = 1;
+				if(linkAndCount.size() == 2)
 				{
-					//linked object's count:
-					std::vector<std::string> linkAndCount = Parsing::Detach(links[linkIndex], "(");
-					int count = 1;
-					if(linkAndCount.size() == 2)
-					{
-						std::vector<std::string> countAndSomething = Parsing::Detach(linkAndCount[1], ")");
-						try
-						{
-							count = boost::lexical_cast<int, std::string>(countAndSomething[0]);
-						}
-						catch(...)
-						{
-							LINK_FORMAT_ERROR;
-							return NULL;
-						}
-					
-						if(count <= 0)
-						{
-							MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" has count attribute = %d. It has to be at least more than zero.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % count);
-							return NULL;
-						}
-					}
-					else if(linkAndCount.size() > 2)
-					{
-						LINK_FORMAT_ERROR;
-						return NULL;
-					}
-				
-					std::vector<std::string> tableAndId = Parsing::Detach(linkAndCount[0], ":");
-					if(tableAndId.size() != 2)
-					{
-						LINK_FORMAT_ERROR;
-						return NULL;
-					}
-				
-					//linked object's id:
-					int id = -1;
+					std::vector<std::string> countAndSomething = Parsing::Detach(linkAndCount[1], ")");
 					try
 					{
-						id = boost::lexical_cast<int, std::string>(tableAndId[1]);
+						count = boost::lexical_cast<int, std::string>(countAndSomething[0]);
 					}
 					catch(...)
 					{
 						LINK_FORMAT_ERROR;
 						return NULL;
 					}
-				
-					//lookup for linked table name:
-					bool tableFound = false;
-					FOR_EACH_WORKSHEET(worksheetTable)
-						if(tableAndId[0].compare(worksheetTable->table->lowercaseName) == 0)
-						{
-							Table* table = worksheetTable->table;
-						
-							//it's pointless to link against virtual table:
-							if(table->type == Table::VIRTUAL)
-							{
-								MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" links against virtual table \"%s\" - it is pointless to link against virtual tables.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % table->realName);
-								return NULL;
-							}
-						
-							//check that target table has special service table which is obligatory for linkage:
-							bool idFieldFound = false;
-							ForEachTable(worksheets[worksheetIndex], [&idFieldFound, &table, &parsing, &messenger](WorksheetTable* worksheet) -> bool
-							{
-								for(size_t targetTableFieldIndex = 0; targetTableFieldIndex < worksheet->table->fields.size(); targetTableFieldIndex++)
-								{
-									Field* targetTableField = table->fields[targetTableFieldIndex];
-									if(targetTableField->type == Field::SERVICE)
-									{
-										ServiceField* serviceField = (ServiceField*)targetTableField;
-										switch(serviceField->serviceType)
-										{
-										case ServiceField::ID:
-											idFieldFound = true;
-											return false;
-										
-										//there are no other service fields types but there can be later:
-										default:
-											return true;
-										}
-									}
-								}
-								
-								return true;
-							});
-							if(idFieldFound == false)
-							{
-								MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" links against table \"%s\" which does NOT support it. Target table must have service column \"id\" to support linkage against it.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % table->realName);
-								return NULL;
-							}
-						
-							link->links.push_back(Count(table, id, count));
-							tableFound = true;
-							break;
-						}
-					}
-					if(tableFound == false)
+					
+					if(count <= 0)
 					{
-						MSG(boost::format("E: table with name \"%s\" was NOT found to link against it within link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%d\".\n") % tableAndId[0] % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
+						MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" has count attribute = %d. It has to be at least more than zero.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % count);
 						return NULL;
 					}
 				}
-			
-				worksheet->links.push_back(link);
-			
-				return link;
+				else if(linkAndCount.size() > 2)
+				{
+					LINK_FORMAT_ERROR;
+					return NULL;
+				}
+				
+				std::vector<std::string> tableAndId = Parsing::Detach(linkAndCount[0], ":");
+				if(tableAndId.size() != 2)
+				{
+					LINK_FORMAT_ERROR;
+					return NULL;
+				}
+				
+				//linked object's id:
+				int id = -1;
+				try
+				{
+					id = boost::lexical_cast<int, std::string>(tableAndId[1]);
+				}
+				catch(...)
+				{
+					LINK_FORMAT_ERROR;
+					return NULL;
+				}
+				
+				//lookup for linked table name:
+				bool tableFound = false;
+				FOR_EACH_WORKSHEET(worksheetTable)
+					if(tableAndId[0].compare(worksheetTable->table->lowercaseName) == 0)
+					{
+						Table* table = worksheetTable->table;
+						
+						//it's pointless to link against virtual table:
+						if(table->type == Table::VIRTUAL)
+						{
+							MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" links against virtual table \"%s\" - it is pointless to link against virtual tables.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % table->realName);
+							return NULL;
+						}
+						
+						//check that target table has special service table which is obligatory for linkage:
+						bool idFieldFound = false;
+						ForEachTable(worksheets[worksheetIndex], [&idFieldFound, &table, &parsing, &messenger](WorksheetTable* worksheet) -> bool
+						{
+							for(size_t targetTableFieldIndex = 0; targetTableFieldIndex < worksheet->table->fields.size(); targetTableFieldIndex++)
+							{
+								Field* targetTableField = table->fields[targetTableFieldIndex];
+								if(targetTableField->type == Field::SERVICE)
+								{
+									ServiceField* serviceField = (ServiceField*)targetTableField;
+									switch(serviceField->serviceType)
+									{
+									case ServiceField::ID:
+										idFieldFound = true;
+										return false;
+										
+									//there are no other service fields types but there can be later:
+									default:
+										return true;
+									}
+								}
+							}
+								
+							return true;
+						});
+						if(idFieldFound == false)
+						{
+							MSG(boost::format("E: link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%s\" links against table \"%s\" which does NOT support it. Target table must have service column \"id\" to support linkage against it.\n") % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName % table->realName);
+							return NULL;
+						}
+						
+						link->links.push_back(Count(table, id, count));
+						tableFound = true;
+						break;
+					}
+				}
+				if(tableFound == false)
+				{
+					MSG(boost::format("E: table with name \"%s\" was NOT found to link against it within link \"%s\" (it's part \"%s\") at row %d and column %d (%s) within table \"%d\".\n") % tableAndId[0] % text % links[linkIndex] % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
+					return NULL;
+				}
 			}
+			
+			worksheet->links.push_back(link);
+			
+			return link;
 		}
 		break;
 
