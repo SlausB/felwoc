@@ -110,7 +110,7 @@ void Keywords::Add(const std::string& keyword, const int match)
 	keywords[keyword] = match;
 }
 
-std::string Keywords::Find(const int value)
+std::string Keywords::Find(Messenger& messenger, const int value)
 {
 	for(std::map<std::string, int>::const_iterator it = keywords.begin(); it != keywords.end(); it++)
 	{
@@ -119,6 +119,9 @@ std::string Keywords::Find(const int value)
 			return it->first;
 		}
 	}
+
+	MSG(boost::format("E: PROGRAM ERROR: Keywords::Find(): value = %d is undefined.\n") % value);
+
 	return std::string();
 }
 
@@ -732,18 +735,32 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 						//if this field was inherited, wrap it into appropriate container:
 						if(worksheet->parent != NULL)
 						{
-							ForEachTable(worksheet->parent, [&field](WorksheetTable* parent) -> bool
+							ForEachTable(worksheet->parent, [worksheet, field](WorksheetTable* parent) -> bool
 							{
 								for(size_t i = 0; i < parent->table->fields.size(); i++)
 								{
 									//it's need to find root table where inherited field was firstly defined, so skip intermediate parents where that field was inherited too:
 									if(parent->table->fields[i]->type != Field::INHERITED && parent->table->fields[i]->name.compare(field->name) == 0)
 									{
-										delete field;
 										InheritedField* wrapped = new InheritedField;
+										wrapped->name = field->name;
+										wrapped->commentary = field->commentary;
 										wrapped->parentField = parent->table->fields[i];
 										wrapped->parent = parent->table;
-										field = wrapped;
+
+										//replace previously created with new one:
+										for(size_t changingFieldIndex = 0; changingFieldIndex < worksheet->table->fields.size(); changingFieldIndex++)
+										{
+											if(worksheet->table->fields[changingFieldIndex]->name.compare(field->name) == 0)
+											{
+												worksheet->table->fields[changingFieldIndex] = wrapped;
+												break;
+											}
+										}
+
+										//old not needed anymore:
+										delete field;
+
 										return false;
 									}
 								}
@@ -774,26 +791,32 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 			return true;
 		});
 		
-		//this table fields:
+		//for each derived field:
 		for(std::list<DerivedField>::iterator it = derivedFields.begin(); it != derivedFields.end(); it++)
 		{
 			bool found = false;
 			
+			//this table fields:
 			for(size_t thisFieldIndex = 0; thisFieldIndex < table->fields.size(); thisFieldIndex++)
 			{
 				Field* thisField = table->fields[thisFieldIndex];
 
-				if(it->field->name.compare(thisField->name) == 0)
+				if(thisField->type == Field::INHERITED)
 				{
-					//check that types are similar:
-					if(it->field->type != thisField->type)
+					if(it->field->name.compare(thisField->name) == 0)
 					{
-						MSG(boost::format("E: derived field \"%s\" within table \"%s\" was defined as \"%s\" within parent table \"%s\" where it is defined as \"%s\". Types must be similar.\n") % thisField->name % worksheet->table->realName % parsing->fieldKeywords.Find(thisField->type) % it->worksheetTable->table->realName % parsing->fieldKeywords.Find(it->field->type));
-						return false;
-					}
+						InheritedField* inheritedField = (InheritedField*)thisField;
 
-					found = true;
-					break;
+						//check that types are similar:
+						if(it->field->type != inheritedField->parentField->type)
+						{
+							MSG(boost::format("E: derived field \"%s\" within table \"%s\" was defined as \"%s\" within parent table \"%s\" where it is defined as \"%s\". Types must be similar.\n") % thisField->name % worksheet->table->realName % parsing->fieldKeywords.Find(messenger, thisField->type) % it->worksheetTable->table->realName % parsing->fieldKeywords.Find(messenger, it->field->type));
+							return false;
+						}
+
+						found = true;
+						break;
+					}
 				}
 			}
 			
@@ -1414,7 +1437,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 
 				if(definedColumns.find(matched) != definedColumns.end())
 				{
-					MSG(boost::format("E: type column \"%s\" at row %d and column %d (%s) within table \"%s\" was already defined.\n") % preciseTableKeywords.Find(matched) % (Parsing::ROW_FIELDS_TYPES + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
+					MSG(boost::format("E: type column \"%s\" at row %d and column %d (%s) within table \"%s\" was already defined.\n") % preciseTableKeywords.Find(messenger, matched) % (Parsing::ROW_FIELDS_TYPES + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
 					return false;
 				}
 
@@ -1507,7 +1530,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 					return false;
 
 				case Field::SERVICE:
-					MSG(boost::format("E: cell of type \"service\" at row %d and column %d (%s) within table \"%s\" is wrong for tables of type \"%s\".\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::TYPE]) % worksheet->table->realName % tableTypesKeywords.Find(worksheet->table->type));
+					MSG(boost::format("E: cell of type \"service\" at row %d and column %d (%s) within table \"%s\" is wrong for tables of type \"%s\".\n") % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::TYPE]) % worksheet->table->realName % tableTypesKeywords.Find(messenger, worksheet->table->type));
 					return false;
 					
 				case Field::TEXT:
@@ -1527,7 +1550,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 					break;
 
 				default:
-					MSG(boost::format("E: UNDEFINED ERROR: something typed within field of type \"%s\" at row %d and column %d (%s) within table \"%s\" of type \"%s\" is undefined. Refer to software supplier for more info.\n") % preciseTableKeywords.Find(Table::Precise::TYPE) % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::TYPE]) % worksheet->table->realName % tableTypesKeywords.Find(worksheet->table->type));
+					MSG(boost::format("E: UNDEFINED ERROR: something typed within field of type \"%s\" at row %d and column %d (%s) within table \"%s\" of type \"%s\" is undefined. Refer to software supplier for more info.\n") % preciseTableKeywords.Find(messenger, Table::Precise::TYPE) % (rowIndex + 1) % (preciseSpecToColumn[Table::Precise::TYPE] + 1) % PrintColumn(preciseSpecToColumn[Table::Precise::TYPE]) % worksheet->table->realName % tableTypesKeywords.Find(messenger, worksheet->table->type));
 					return false;
 				}
 

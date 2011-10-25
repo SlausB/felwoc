@@ -26,7 +26,7 @@ public:
 	void Add(const std::string& keyword, const int match);
 
 	/** Looks for key using value. Returns empty string if was not found. */
-	std::string Find(const int value);
+	std::string Find(Messenger& messenger, const int value);
 	
 	/** Возвращает список возможных вариантов, перечисленных через запятую.*/
 	std::string PrintPossible() const;
