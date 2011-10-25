@@ -11,50 +11,135 @@
 #include <boost/lexical_cast.hpp>
 
 
-std::string PrintType(Messenger& messenger, const int type)
+const char* everyonesParentName = "Info";
+
+
+std::string PrintType(Messenger& messenger, const Field* field)
 {
-	switch(type)
+	switch(field->type)
 	{
 	case Field::INHERITED:
 		{
-
+			InheritedField* inheritedField = (InheritedField*)field;
+			return PrintType(messenger, inheritedField->parentField);
 		}
 		break;
 
 	case Field::SERVICE:
 		{
+			ServiceField* serviceField = (ServiceField*)field;
+			switch(serviceField->serviceType)
+			{
+			case ServiceField::ID:
+				return "int";
+
+			default:
+				messenger.error(boost::format("E: AS3: PROGRAM ERROR: PrintType(): service type = %d is undefined. Returning empty string. Refer to software supplier.\n") % serviceField->serviceType);
+				return std::string();
+			}
 		}
 		break;
 
 	case Field::TEXT:
 		{
+			return "String";
 		}
 		break;
 
 	case Field::FLOAT:
 		{
+			return "Number";
 		}
 		break;
 
 	case Field::INT:
 		{
+			return "int";
 		}
 		break;
 
 	case Field::LINK:
 		{
+			return everyonesParentName;
 		}
 		break;
 
+	case Field::BOOL:
+		{
+			return "Boolean";
+		}
+		break;
 
+	case Field::ARRAY:
+		{
+			return "Array";
+		}
+		break;
 
+	
 	default:
-		messenger.error(boost::format("E: AS3: PROGRAM ERROR: PrintType(): type = %d is undefined. Returning empty string. Refer to software supplier.\n") % type);
-		return std::string();
+		messenger.error(boost::format("E: AS3: PROGRAM ERROR: PrintType(): type = %d is undefined. Returning empty string. Refer to software supplier.\n") % field->type);
 	}
+
+	return std::string();
 }
 
-const char* everyonesParentName = "Info";
+/** Prints simple or multiline commentary with specified indention.*/
+std::string PrintCommentary(const std::string& indention, const std::string& commentary)
+{
+	std::string result;
+	
+	result.append(indention);
+	result.append("/** ");
+				
+	bool multiline = false;
+	for(size_t i = 0; i < commentary.size(); i++)
+	{
+		if(commentary[i] == '\n')
+		{
+			multiline = true;
+			break;
+		}
+	}
+
+	if(multiline)
+	{
+		result.append("\n");
+		result.append(indention);
+
+		bool lastIsEscape = false;
+		for(size_t i = 0; i < commentary.size(); i++)
+		{
+			result.push_back(commentary[i]);
+
+			if(commentary[i] == '\n')
+			{
+				result.append(indention);
+
+				lastIsEscape = true;
+			}
+			else
+			{
+				lastIsEscape = false;
+			}
+		}
+		if(lastIsEscape == false)
+		{
+			result.append("\n");
+		}
+
+		result.append(indention);
+	}
+	else
+	{
+		result.append(commentary);
+		result.append(" ");
+	}
+
+	result.append("*/\n");
+
+	return result;
+}
 
 
 bool AS3Target::Generate(const AST& ast, Messenger& messenger)
@@ -98,7 +183,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			file << "/// @cond\n";
 
 			//package:
-			file << "package infos {\n";
+			file << "package infos\n{\n";
 
 			//doxygen:
 			file << indention << doxygen;
@@ -109,6 +194,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 		//name:
 		{
+			file << PrintCommentary(indention, table->commentary);
+
 			std::string parentName = table->parent == NULL ? everyonesParentName : classNames[table->parent];
 			file << indention << str(boost::format("class %s extends %s\n") % classNames[table] % parentName);
 		}
@@ -122,26 +209,29 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			Field* field = table->fields[fieldIndex];
 
 			//commentary:
-			file << indention << indention;
-			file << str(boost::format("/** %s */\n") % field->commentary);
+			file << PrintCommentary(indention + indention, field->commentary);
 
 			//field:
-			file << indention << indention;
-
-			//switch(
+			const std::string fieldsTypeName = PrintType(messenger, field);
+			if(fieldsTypeName.empty())
+			{
+				return false;
+			}
+			file << indention << indention << "public var " << field->name << ":" << fieldsTypeName << ";\n";
 
 			file << indention << indention << "\n";
 		}
 
 		//constructor:
 		{
-			const char* defaultConstructor = "Default constructor to let define all fields within any child classes derived from this class (if there are some).";
-			file << indention << indention << defaultConstructor << "\n";
+			//default:
+			file << indention << indention << "/** Default constructor to let define all fields within any child classes derived from this class (if there are some). */\n";
 			file << indention << indention << classNames[table] << "()\n";
 			file << indention << indention << "{\n";
 			file << indention << indention << "}\n";
 			file << indention << indention << "\n";
 
+			//initialization:
 			//declaration:
 			file << indention << indention << classNames[table] << "(";
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
@@ -153,10 +243,24 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 				Field* field = table->fields[fieldIndex];
 
-				//file << field->name << ":" << 
+				const std::string fieldsTypeName = PrintType(messenger, field);
+				if(fieldsTypeName.empty())
+				{
+					return false;
+				}
+				file << field->name << ":" << fieldsTypeName;
 			}
-			file << indention << indention << ")";
+			file << ")\n";
 		}
+		//definition:
+		file << indention << indention << "{\n";
+		for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
+		{
+			Field* field = table->fields[fieldIndex];
+
+			file << indention << indention << indention << "this." << field->name << " = " << field->name << ";\n";
+		}
+		file << indention << indention << "}\n";
 
 
 
