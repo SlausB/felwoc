@@ -11,23 +11,6 @@
 #include <boost/lexical_cast.hpp>
 
 
-
-/** Recursively finds unique name.*/
-std::string Unique(std::string startingName, const int startingUnique, const std::map<Table*, std::string>& where)
-{
-	for(std::map<Table*, std::string>::const_iterator it = where.begin(); it != where.end(); it++)
-	{
-		if(startingName.compare(it->second) == 0)
-		{
-			startingName.push_back('A' + (startingUnique % ('A' - 'Z')));
-			return Unique(startingName, startingUnique + 1, where);
-		}
-	}
-
-	return startingName;
-}
-
-
 bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 {
 	boost::filesystem::create_directory("as3");
@@ -93,6 +76,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			//switch(
 		}
 
+
+
 		//body close:
 		file << indention << "}\n";
 
@@ -100,7 +85,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		file << "}\n\n";
 	}
 
-	//incapsulation:
+/*	//incapsulation:
 	std::string incFileName = str(boost::format("as3/%s.as") % Unique("Infos", 0, classNames));
 	std::ofstream incFile(incFileName.c_str());
 	if(incFile.fail())
@@ -108,7 +93,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		messenger << (boost::format("E: %s: AS3: file \"%s\" was NOT opened.\n") % ast.fileName % incFileName);
 		return false;
 	}
-
+	*/
 
 
 	messenger << (boost::format("I: AS3 code successfully generated.\n"));

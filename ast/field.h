@@ -24,6 +24,7 @@ public:
 		INT,	/**< Integer.*/
 		LINK,	/**< Link to some other row.*/
 		BOOL,	/**< Boolean.*/
+		ARRAY,	/**< Array of integral or real-valued values separated by semicolons.*/
 	};
 	
 	/** This fields type.*/

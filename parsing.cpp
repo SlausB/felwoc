@@ -22,6 +22,7 @@
 #include <assert.h>
 
 
+
 #define FOR_EACH_WORKSHEET(name) \
 	for(size_t worksheetIndex = 0; worksheetIndex < worksheets.size(); worksheetIndex++) \
 	{ \
@@ -265,6 +266,13 @@ public:
 	int columnsCount;
 };
 
+struct DerivedField
+{
+	Field* field;
+	WorksheetTable* worksheetTable;
+};
+
+
 
 Parsing::Parsing()
 {
@@ -283,6 +291,7 @@ Parsing::Parsing()
 	fieldKeywords.Add("int", Field::INT);
 	fieldKeywords.Add("link", Field::LINK);
 	fieldKeywords.Add("bool", Field::BOOL);
+	fieldKeywords.Add("array", Field::ARRAY);
 	
 	serviceFieldsKeywords.Add("id", ServiceField::ID);
 
@@ -593,6 +602,13 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 				worksheet->table->fields.push_back(boolField);
 			}
 			break;
+
+		case Field::ARRAY:
+			{
+				Field* arrayField = new Field(Field::ARRAY);
+				worksheet->table->fields.push_back(arrayField);
+			}
+			break;
 			
 		default:
 			MSG(boost::format("E: PROGRAM ERROR: second row and %d (%s) column: field type = %d is undefined. Refer to software supplier.\n") % (columnIndex + 1) % PrintColumn(columnIndex) % parsing->fieldKeywords.Match(messenger, worksheet->table->realName, rowIndex, columnIndex, typeName));
@@ -744,25 +760,38 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 	if(worksheet->parent != NULL && worksheet->table->type != Table::VIRTUAL)
 	{
 		//all inherited fields:
-		std::set<std::string> parentFields;
-		ForEachTable(worksheet->parent, [&parentFields](WorksheetTable* parent) -> bool
+		std::list<DerivedField> derivedFields;
+		ForEachTable(worksheet->parent, [&derivedFields](WorksheetTable* parent) -> bool
 		{
 			for(size_t i = 0; i < parent->table->fields.size(); i++)
 			{
-				parentFields.insert(parent->table->fields[i]->name);
+				DerivedField derivedField;
+				derivedField.field = parent->table->fields[i];
+				derivedField.worksheetTable = parent;
+
+				derivedFields.push_back(derivedField);
 			}
 			return true;
 		});
 		
 		//this table fields:
-		for(std::set<std::string>::iterator it = parentFields.begin(); it != parentFields.end(); it++)
+		for(std::list<DerivedField>::iterator it = derivedFields.begin(); it != derivedFields.end(); it++)
 		{
 			bool found = false;
 			
 			for(size_t thisFieldIndex = 0; thisFieldIndex < table->fields.size(); thisFieldIndex++)
 			{
-				if(it->compare(table->fields[thisFieldIndex]->name) == 0)
+				Field* thisField = table->fields[thisFieldIndex];
+
+				if(it->field->name.compare(thisField->name) == 0)
 				{
+					//check that types are similar:
+					if(it->field->type != thisField->type)
+					{
+						MSG(boost::format("E: derived field \"%s\" within table \"%s\" was defined as \"%s\" within parent table \"%s\" where it is defined as \"%s\". Types must be similar.\n") % thisField->name % worksheet->table->realName % parsing->fieldKeywords.Find(thisField->type) % it->worksheetTable->table->realName % parsing->fieldKeywords.Find(it->field->type));
+						return false;
+					}
+
 					found = true;
 					break;
 				}
@@ -770,7 +799,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 			
 			if(found == false)
 			{
-				MSG(boost::format("E: derived field \"%s\" was NOT defined within table \"%s\".\n") % (*it) % table->realName);
+				MSG(boost::format("E: derived field \"%s\" was NOT defined within table \"%s\".\n") % (*it).field->name % table->realName);
 				return false;
 			}
 		}
@@ -1565,7 +1594,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				}
 				if(found == false)
 				{
-					MSG(boost::format("E: link \"%s\" links against object with id %d within table \"%s\" which does NOT exist.\n") % link->text % count.id % count.table->realName);
+					MSG(boost::format("E: link \"%s\" at row %d and column %d (%s) within table \"%s\" links against object with id %d within table \"%s\" which does NOT exist.\n") % link->text % link->row % link->column % PrintColumn(link->column - 1) % worksheet->table->realName % count.id % count.table->realName);
 					return false;
 				}
 			}
