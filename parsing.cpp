@@ -1071,6 +1071,36 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 		}
 		break;
 
+	case Field::ARRAY:
+		{
+			Array* arrayField = new Array(field, rowIndex + 1, columnIndex + 1);
+
+			const std::string text = GetString(dataCell);
+
+			//empty string is just an empty array...
+
+			std::vector<std::string> values = Parsing::Detach(text, ";");
+			for(std::vector<std::string>::const_iterator it = values.begin(); it != values.end(); it++)
+			{
+				double value;
+
+				try
+				{
+					value = boost::lexical_cast<double, std::string>(*it);
+				}
+				catch(...)
+				{
+					MSG(boost::format("E: array's part \"%s\" (originating from \"%s\") at row %d and column %d (%s) within table \"%s\" is not of numeral type. Type integral or real-valued numerals separated by semicolons.\n") % (*it) % text % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % worksheet->table->realName);
+					return NULL;
+				}
+
+				arrayField->values.push_back(value);
+			}
+
+			return arrayField;
+		}
+		break;
+
 	
 	default:
 		MSG(boost::format("E: PROGRAM ERROR: field's type = %d at row %d and column %d (%s) is undefined. Refer to software supplier.\n") % field->type % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex));
