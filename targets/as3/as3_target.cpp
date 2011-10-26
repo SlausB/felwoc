@@ -23,6 +23,24 @@ const char* findLinkTargetFunctionName = "FindLinkTarget";
 const char* allTablesName = "__all";
 
 
+bool IsLink(Field* field)
+{
+	if(field->type == Field::LINK)
+	{
+		return true;
+	}
+
+	if(field->type == Field::INHERITED)
+	{
+		if(((InheritedField*)field)->parentField->type == Field::LINK)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /** Returns empty string on some error.*/
 std::string PrintType(Messenger& messenger, const Field* field)
 {
@@ -263,7 +281,7 @@ std::string PrintCommentary(const std::string& indention, const std::string& com
 
 bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 {
-	const std::string targetFolder = "./as3";
+	const std::string targetFolder = "./as3/code";
 	const std::string explanation = "/* This file is generated using the \"fxlsc\" program from XLS design file.\nBugs issues or suggestions can be sent to SlavMFM@gmail.com\n*/\n\n";
 	const char* doxygen = "// for doxygen to properly generate java-like documentation:\n";
 	const char* doxygen_cond = "/// @cond\n";
@@ -320,17 +338,11 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			file << PrintCommentary(indention, table->commentary);
 
 			std::string parentName = table->parent == NULL ? everyonesParentName : classNames[table->parent];
-			file << indention << str(boost::format("class %s extends %s\n") % classNames[table] % parentName);
+			file << indention << str(boost::format("public class %s extends %s\n") % classNames[table] % parentName);
 		}
 
 		//body open:
 		file << indention << "{\n";
-
-		if(table->realName.compare("Constants") == 0)
-		{
-			//break here:
-			printf("");
-		}
 
 		//fields:
 		for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
@@ -357,7 +369,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 				file << "var ";
 			}
 			file << field->name << ":";
-			if(field->type == Field::LINK)
+			if(IsLink(field))
 			{
 				file << linkName;
 			}
@@ -368,7 +380,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 			if(table->type == Table::PRECISE)
 			{
-				if(field->type != Field::LINK)
+				if(IsLink(field) == false)
 				{
 					file << " = " << PrintData(messenger, table->matrix[0][fieldIndex]);
 				}
@@ -381,24 +393,25 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		}
 
 		//constructor:
+		if(table->type != Table::PRECISE && table->type != Table::SINGLE)
 		{
 			//default:
 			file << indention << indention << "/** Default constructor to let define all fields within any child classes derived from this class (if there are some). */\n";
-			file << indention << indention << classNames[table] << "()\n";
+			file << indention << indention << "public function " << classNames[table] << "()\n";
 			file << indention << indention << "{\n";
 			file << indention << indention << "}\n";
 			file << indention << indention << "\n";
 
 			//initialization:
 			//declaration:
-			file << indention << indention << classNames[table] << "(";
+			file << indention << indention << "public function " << classNames[table] << "(";
 			bool once = false;
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
 				Field* field = table->fields[fieldIndex];
 
 				//links are defined after all initializations:
-				if(field->type == Field::LINK)
+				if(IsLink(field))
 				{
 					continue;
 				}
@@ -417,18 +430,19 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 				file << field->name << ":" << fieldsTypeName;
 			}
 			file << ")\n";
+		
+
+			//definition:
+			file << indention << indention << "{\n";
+			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
+			{
+				Field* field = table->fields[fieldIndex];
+	
+				file << indention << indention << indention << "this." << field->name << " = " << field->name << ";\n";
+			}
+			file << indention << indention << "}\n";
 		}
-		//definition:
-		file << indention << indention << "{\n";
-		for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
-		{
-			Field* field = table->fields[fieldIndex];
-
-			file << indention << indention << indention << "this." << field->name << " = " << field->name << ";\n";
-		}
-		file << indention << indention << "}\n";
-
-
+		
 
 		//body close:
 		file << indention << "}\n";
@@ -484,7 +498,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		//name:
 		{
 			file << indention << "/** Data definition.*/\n";
-			file << indention << "class " << incapsulationName << "\n";
+			file << indention << "public class " << incapsulationName << "\n";
 		}
 
 		//body open:
@@ -536,7 +550,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		//constructor:
 		//initialization:
 		file << indention << indention << "/** All data definition.*/\n";
-		file << indention << indention << incapsulationName << "()\n";
+		file << indention << indention << "public function " << incapsulationName << "()\n";
 		//definition:
 		file << indention << indention << "{\n";
 		for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
@@ -562,7 +576,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 				{
 					FieldData* fieldData = *column;
 
-					if(fieldData->field->type == Field::LINK)
+					if(IsLink(fieldData->field))
 					{
 						continue;
 					}
@@ -599,7 +613,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 				{
 					Field* field = table->fields[fieldIndex];
 
-					if(field->type != Field::LINK)
+					if(IsLink(field) == false)
 					{
 						continue;
 					}
@@ -609,9 +623,22 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 					int rowIndex = 0;
 					for(std::vector<std::vector<FieldData*> >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); row++, rowIndex++)
 					{
-						Link* link = (Link*)(row->at(fieldIndex));
+						Link* link;
+						if(field->type == Field::LINK)
+						{
+							link = (Link*)(row->at(fieldIndex));
+						}
+						else if(field->type == Field::INHERITED)
+						{
+							link = (Link*)(((Inherited*)(row->at(fieldIndex)))->fieldData);
+						}
+						else
+						{
+							messenger.error(boost::format("E: AS3: PROGRAM ERROR: linking: field's type = %d is undefined. Refer to software supplier.\n") % field->type);
+							return false;
+						}
 
-						file << indention << indention << indention << table->lowercaseName << "[" << rowIndex << "] = new " << linkName << "([";
+						file << indention << indention << indention << table->lowercaseName << "[" << rowIndex << "]." << field->name << " = new " << linkName << "([";
 						for(std::vector<Count>::const_iterator count = link->links.begin(); count != link->links.end(); count++)
 						{
 							if(count != link->links.begin())
@@ -619,7 +646,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 								file << ", ";
 							}
 
-							file << "new " << countName << "(" << everyonesParentName << "." << findLinkTargetFunctionName << "(" << classNames[count->table] << ", " << count->id << "), " << count->count << ")";
+							file << "new " << countName << "(" << everyonesParentName << "." << findLinkTargetFunctionName << "(" << count->table->lowercaseName << ", " << count->id << "), " << count->count << ")";
 						}
 						file << "]);\n";
 					}
@@ -734,9 +761,9 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			linkFile << indention << "/** Field that incapsulates all objects and counts to which object was linked*/\n";
 			countFile << indention << "/** Link to single object which holds object's count along with object's pointer.*/\n";
 			everyonesParentFile << indention << "/** All design types inherited from this class to permit objects storage within single array.*/\n";
-			linkFile << indention << "class " << linkName;
-			countFile << indention << "class " << countName;
-			everyonesParentFile << indention << "class " << everyonesParentName;
+			linkFile << indention << "public class " << linkName << "\n";
+			countFile << indention << "public class " << countName << "\n";
+			everyonesParentFile << indention << "public class " << everyonesParentName << "\n";
 		}
 
 		//body open:
@@ -746,13 +773,13 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 		//fields:
 		//link-specific:
-		linkFile << indention << indention << str(boost::format("/** All linked objects. Elements of type \"%s\". Defined within constructor.\n") % countName);
-		linkFile << indention << indention << "public var links:Vector.<" << everyonesParentName << ">;\n";
+		linkFile << indention << indention << str(boost::format("/** All linked objects. Elements of type \"%s\". Defined within constructor.*/\n") % countName);
+		linkFile << indention << indention << "public var links:Vector.<" << everyonesParentName << ">;\n\n";
 		//count-specific:
-		countFile << indention << indention << str(boost::format("/** Linked object. Defined within constructor.\n"));
-		countFile << indention << indention << str(boost::format("public var object:%s;\n") % everyonesParentName);
-		countFile << indention << indention << str(boost::format("/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.\n"));
-		countFile << indention << indention << str(boost::format("public var count:int;\n"));
+		countFile << indention << indention << str(boost::format("/** Linked object. Defined within constructor.*/\n"));
+		countFile << indention << indention << str(boost::format("public var object:%s;\n\n") % everyonesParentName);
+		countFile << indention << indention << str(boost::format("/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/\n"));
+		countFile << indention << indention << str(boost::format("public var count:int;\n\n"));
 		//everyones-parent specific:
 		//...
 
@@ -761,9 +788,9 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 		//initialization:
 		linkFile << indention << indention << "/** All counts at once.*/\n";
-		countFile << indention << indention << "/** All pointer and count at construction.*/\n";
-		linkFile << indention << indention << linkName << "(links:Vector.<" << everyonesParentName << ">)\n";
-		countFile << indention << indention << countName << str(boost::format("(object:%s, count:int)\n") % everyonesParentName);
+		countFile << indention << indention << "/** Both pointer and count at construction.*/\n";
+		linkFile << indention << indention << "public function " << linkName << "(links:Vector.<" << everyonesParentName << ">)\n";
+		countFile << indention << indention << "public function " << countName << str(boost::format("(object:%s, count:int)\n") % everyonesParentName);
 
 		//definition:
 		linkFile << indention << indention << "{\n";
@@ -787,8 +814,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 		//package close:
 		linkFile << "}\n\n";
-		countFile << indention << "}\n\n";
-		everyonesParentFile << indention << "}\n\n";
+		countFile << "}\n\n";
+		everyonesParentFile << "}\n\n";
 	}
 
 
