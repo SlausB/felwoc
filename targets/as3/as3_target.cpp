@@ -349,6 +349,11 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		{
 			Field* field = table->fields[fieldIndex];
 
+			if(field->type == Field::INHERITED)
+			{
+				continue;
+			}
+
 			//commentary:
 			file << PrintCommentary(indention + indention, field->commentary);
 
@@ -393,19 +398,12 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		}
 
 		//constructor:
-		if(table->type != Table::PRECISE && table->type != Table::SINGLE)
+		if(table->type != Table::PRECISE && table->type != Table::SINGLE && table->type != Table::VIRTUAL)
 		{
-			//default:
-			file << indention << indention << "/** Default constructor to let define all fields within any child classes derived from this class (if there are some). */\n";
-			file << indention << indention << "public function " << classNames[table] << "()\n";
-			file << indention << indention << "{\n";
-			file << indention << indention << "}\n";
-			file << indention << indention << "\n";
-
-			//initialization:
 			//declaration:
+			file << indention << indention << "/** All (including inherited) fields (excluding links) are defined here. To let define classes only within it's classes without inherited constructors used udnefined arguments.*/\n";
 			file << indention << indention << "public function " << classNames[table] << "(";
-			bool once = false;
+			/*bool once = false;
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
 				Field* field = table->fields[fieldIndex];
@@ -428,17 +426,21 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 					return false;
 				}
 				file << field->name << ":" << fieldsTypeName;
-			}
+			}*/
+			file << "... args";
 			file << ")\n";
 		
 
 			//definition:
 			file << indention << indention << "{\n";
+			file << indention << indention << indention << "if(args.length <= 0) return;\n";
+			file << indention << indention << indention << "\n";
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
 				Field* field = table->fields[fieldIndex];
 	
-				file << indention << indention << indention << "this." << field->name << " = " << field->name << ";\n";
+				//file << indention << indention << indention << "this." << field->name << " = " << field->name << ";\n";
+				file << indention << indention << indention << "this." << field->name << " = args[" << fieldIndex << "];\n";
 			}
 			file << indention << indention << "}\n";
 		}
