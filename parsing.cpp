@@ -726,6 +726,8 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 								{
 									ServiceField* serviceField = (ServiceField*)field;
 									serviceField->serviceType = ServiceField::ID;
+									//always the same:
+									std::transform(serviceField->name.begin(), serviceField->name.end(), serviceField->name.begin(), ::tolower);
 								}
 								break;
 							}
