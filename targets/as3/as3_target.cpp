@@ -685,9 +685,9 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			file << indention << indention << "{\n";
 			file << indention << indention << indention << "for(var i:int = 0; i < where.length; i++)\n";
 			file << indention << indention << indention << "{\n";
-			file << indention << indention << indention << indention << "if(where[i].id == id) return where[i];\n";
+			file << indention << indention << indention << indention << "if(((Object)(where[i])).id == id) return where[i];\n";
 			file << indention << indention << indention << "}\n";
-			file << indention << indention << indention << "return NULL;\n";
+			file << indention << indention << indention << "return null;\n";
 			file << indention << indention << "}\n";
 		}
 
