@@ -126,7 +126,20 @@ std::string PrintData(Messenger& messenger, const FieldData* fieldData)
 	case Field::TEXT:
 		{
 			Text* text = (Text*)fieldData;
-			return text->text;
+
+			std::string result = "\"";
+			//escape:
+			for(size_t i = 0; i < text->text.size(); i++)
+			{
+				if(text->text[i] == '"')
+				{
+					result.push_back('\\');
+				}
+
+				result.push_back(text->text[i]);
+			}
+			result.push_back('"');
+			return result;
 		}
 		break;
 
@@ -251,7 +264,7 @@ std::string PrintCommentary(const std::string& indention, const std::string& com
 bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 {
 	const std::string targetFolder = "./as3";
-	const std::string explanation = "/* This file is generated using the \"fxlsc\" program from XLS design file.\nBug issues or suggestions can be sent to SlavMFM@gmail.com\n*/\n\n";
+	const std::string explanation = "/* This file is generated using the \"fxlsc\" program from XLS design file.\nBugs issues or suggestions can be sent to SlavMFM@gmail.com\n*/\n\n";
 	const char* doxygen = "// for doxygen to properly generate java-like documentation:\n";
 	const char* doxygen_cond = "/// @cond\n";
 	const char* doxygen_endcond = "/// @endcond\n";
@@ -312,6 +325,12 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 		//body open:
 		file << indention << "{\n";
+
+		if(table->realName.compare("Constants") == 0)
+		{
+			//break here:
+			printf("");
+		}
 
 		//fields:
 		for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
@@ -465,7 +484,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		//name:
 		{
 			file << indention << "/** Data definition.*/\n";
-			file << indention << "class " << incapsulationName;
+			file << indention << "class " << incapsulationName << "\n";
 		}
 
 		//body open:
