@@ -435,12 +435,19 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			file << indention << indention << "{\n";
 			file << indention << indention << indention << "if(args.length <= 0) return;\n";
 			file << indention << indention << indention << "\n";
+			int argIndex = 0;
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
 				Field* field = table->fields[fieldIndex];
+
+				if(IsLink(field))
+				{
+					continue;
+				}
 	
 				//file << indention << indention << indention << "this." << field->name << " = " << field->name << ";\n";
-				file << indention << indention << indention << "this." << field->name << " = args[" << fieldIndex << "];\n";
+				file << indention << indention << indention << "this." << field->name << " = args[" << argIndex << "];\n";
+				argIndex++;
 			}
 			file << indention << indention << "}\n";
 		}
@@ -527,7 +534,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			//for now there are no differences with MANY:
 			case Table::MORPH:
 				{
-					file << ":Array = [];\n";
+					file << ":Vector.<" << classNames[table] << "> = new Vector.<" << classNames[table] << ">;\n";
 				}
 				break;
 
@@ -547,7 +554,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			file << indention << indention << "\n";
 		}
 		//all:
-		file << indention << indention << "public var " << allTablesName << ":Vector.<Vector.<" << everyonesParentName << "> > = [];\n\n";
+		file << indention << indention << "/** Array of all arrays. Each element is of type Vector.<" << everyonesParentName << "> */\n";
+		file << indention << indention << "public var " << allTablesName << ":Array = [];\n\n";
 
 		//constructor:
 		//initialization:
@@ -648,7 +656,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 								file << ", ";
 							}
 
-							file << "new " << countName << "(" << everyonesParentName << "." << findLinkTargetFunctionName << "(" << count->table->lowercaseName << ", " << count->id << "), " << count->count << ")";
+							file << "new " << countName << "(" << incapsulationName << "." << findLinkTargetFunctionName << "(" << count->table->lowercaseName << ", " << count->id << "), " << count->count << ")";
 						}
 						file << "]);\n";
 					}
@@ -681,11 +689,11 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		//function which finds links targets:
 		{
 			file << indention << indention << "/** Looks for link target.*/\n";
-			file << indention << indention << "public static function " << findLinkTargetFunctionName << "(where:Vector.<" << everyonesParentName << ">, id:int)\n";
+			file << indention << indention << "public static function " << findLinkTargetFunctionName << "(where:Object, id:int): " << everyonesParentName << "\n";
 			file << indention << indention << "{\n";
-			file << indention << indention << indention << "for(var i:int = 0; i < where.length; i++)\n";
+			file << indention << indention << indention << "for each(var some:Object in where)\n";
 			file << indention << indention << indention << "{\n";
-			file << indention << indention << indention << indention << "if(((Object)(where[i])).id == id) return where[i];\n";
+			file << indention << indention << indention << indention << "if(some.id == id) return some as " << everyonesParentName << ";\n";
 			file << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "return null;\n";
 			file << indention << indention << "}\n";
@@ -775,8 +783,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 		//fields:
 		//link-specific:
-		linkFile << indention << indention << str(boost::format("/** All linked objects. Elements of type \"%s\". Defined within constructor.*/\n") % countName);
-		linkFile << indention << indention << "public var links:Vector.<" << everyonesParentName << ">;\n\n";
+		linkFile << indention << indention << "/** All linked objects. Defined within constructor.*/\n";
+		linkFile << indention << indention << "public var links:Vector.<" << countName << "> = new Vector.<" << countName << ">;\n\n";
 		//count-specific:
 		countFile << indention << indention << str(boost::format("/** Linked object. Defined within constructor.*/\n"));
 		countFile << indention << indention << str(boost::format("public var object:%s;\n\n") % everyonesParentName);
@@ -791,7 +799,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 		//initialization:
 		linkFile << indention << indention << "/** All counts at once.*/\n";
 		countFile << indention << indention << "/** Both pointer and count at construction.*/\n";
-		linkFile << indention << indention << "public function " << linkName << "(links:Vector.<" << everyonesParentName << ">)\n";
+		linkFile << indention << indention << "public function " << linkName << "(links:Array)\n";
 		countFile << indention << indention << "public function " << countName << str(boost::format("(object:%s, count:int)\n") % everyonesParentName);
 
 		//definition:
@@ -800,7 +808,10 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 
 		//definition:
 		//link-specific:
-		linkFile << indention << indention << indention << "this.links = links;\n";
+		linkFile << indention << indention << indention << "for(var i:int = 0; i < links.length; i++)\n";
+		linkFile << indention << indention << indention << "{\n";
+		linkFile << indention << indention << indention << indention << "this.links.push(links[i] as " << countName << ");\n";
+		linkFile << indention << indention << indention << "}\n";
 		//count-specific:
 		countFile << indention << indention << indention << "this.object = object;\n";
 		countFile << indention << indention << indention << "this.count = count;\n";
