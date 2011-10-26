@@ -503,7 +503,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 	}
 
 	//relation for such tables types is inverted - columns specification is read for each row:
-	if(worksheet->table->type == Table::PRECISE)
+	if(worksheet->table->type == Table::PRECISE || worksheet->table->type == Table::SINGLE)
 	{
 		return true;
 	}
@@ -1413,7 +1413,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 		//for tables of type "precise":
 		//redirection from column specification to column index (constant from Table::Precise::...):
 		std::map<int, int> preciseSpecToColumn;
-		if(worksheet->table->type == Table::PRECISE)
+		if(worksheet->table->type == Table::PRECISE || worksheet->table->type == Table::SINGLE)
 		{
 			std::set<int> definedColumns;
 
@@ -1472,7 +1472,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 
 				if(found == false)
 				{
-					MSG(boost::format("E: column of type \"%s\" within table \"%s\" of type \"precise\" was NOT specified.\n") % needed->first % worksheet->table->realName);
+					MSG(boost::format("E: column of type \"%s\" within table \"%s\" of type \"%s\" was NOT specified.\n") % needed->first % worksheet->table->realName % tableTypesKeywords.Find(messenger, worksheet->table->type));
 					return false;
 				}
 			}
@@ -1511,8 +1511,11 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			}
 			
 			//relation within "precise" tables is inverted:
-			if(worksheet->table->type == Table::PRECISE)
+			if(worksheet->table->type == Table::PRECISE || worksheet->table->type == Table::SINGLE)
 			{
+				//for such tables there are always single row:
+				worksheet->table->matrix.push_back(std::vector<FieldData*>());
+
 				ExcelFormat::BasicExcelCell* typeCell = worksheet->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::TYPE]);
 				ExcelFormat::BasicExcelCell* nameCell = worksheet->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::NAME]);
 				ExcelFormat::BasicExcelCell* valueCell = worksheet->worksheet->Cell(rowIndex, preciseSpecToColumn[Table::Precise::VALUE]);
@@ -1556,6 +1559,8 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 					return false;
 				}
 
+				worksheet->table->fields.push_back(field);
+
 				//field's name:
 				field->name = GetString(nameCell);
 				if(field->name.empty())
@@ -1570,6 +1575,8 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 				{
 					return false;
 				}
+
+				worksheet->table->matrix[0].push_back(fieldData);
 
 				//field's commentary:
 				field->commentary = GetString(commentaryCell);
