@@ -38,6 +38,9 @@ const char* packageName = "infos";
 //appended to all class names:
 const char* postfix = "Info";
 
+//name of class which incapsulates table properties and array of it's objects:
+const char* boundName = "Bound";
+
 
 
 
@@ -518,6 +521,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 				//obligatory imports:
 				file << indention << "import " << overallNamespace << "." << linkName << ";\n";
 				file << indention << "import " << overallNamespace << "." << everyonesParentName << ";\n";
+				file << indention << "import " << overallNamespace << "." << boundName << ";\n";
 				file << indention << "\n";
 
 				//infos:
@@ -592,7 +596,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		}
 		//all:
 		file << indention << indention << "/** Array of all arrays. Each element is of type Vector.<" << everyonesParentName << "> */\n";
-		file << indention << indention << "public var " << allTablesName << ":Array = [];\n\n";
+		file << indention << indention << "public var " << allTablesName << ":Vector.<" << boundName << "> = new Vector.<" << boundName << ">;\n\n";
 
 		//constructor:
 		//initialization:
@@ -718,7 +722,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 					continue;
 				}
 
-				file << indention << indention << indention << allTablesName << ".push(" << table->lowercaseName << ");\n";
+				file << indention << indention << indention << allTablesName << ".push(new " << boundName << "(\"" << table->realName << "\", " << table->lowercaseName << "));\n";
 			}
 		}
 		file << indention << indention << "}\n";
@@ -744,7 +748,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		file << "}\n\n";
 	}
 
-	//link, count and everyones parent types declaration:
+	//link, count, everyones parent, bound:
 	{
 		std::string linkFileName = str(boost::format("%s/%s.as") % targetFolder % linkName);
 		std::ofstream linkFile(linkFileName.c_str());
@@ -769,6 +773,14 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % everyonesParentFile);
 			return false;
 		}
+
+		std::string boundFileName = str(boost::format("%s/%s.as") % targetFolder % boundName);
+		std::ofstream boundFile (boundFileName.c_str());
+		if(boundFile.fail())
+		{
+			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % boundFileName);
+			return false;
+		}
 		
 		//file's head:
 		{
@@ -776,20 +788,24 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			linkFile << explanation;
 			countFile << explanation;
 			everyonesParentFile << explanation;
+			boundFile << explanation;
 
 			//doxygen:
 			linkFile << doxygen;
 			countFile << doxygen;
 			everyonesParentFile << doxygen;
+			boundFile << doxygen;
 			linkFile << doxygen_cond;
 			countFile << doxygen_cond;
 			everyonesParentFile << doxygen_cond;
+			boundFile << doxygen_cond;
 
 			//package:
 			const std::string similarPackage = str(boost::format("package %s\n{\n") % overallNamespace);
 			linkFile << similarPackage;
 			countFile << similarPackage;
 			everyonesParentFile << similarPackage;
+			boundFile << similarPackage;
 
 			//imports:
 			linkFile << indention << "import " << overallNamespace << "." << countName << ";\n";
@@ -799,13 +815,16 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			linkFile << indention << doxygen;
 			countFile << indention << doxygen;
 			everyonesParentFile << indention << doxygen;
+			boundFile << indention << doxygen;
 			linkFile << indention << doxygen_endcond;
 			countFile << indention << doxygen_endcond;
 			everyonesParentFile << indention << doxygen_endcond;
+			boundFile << indention << doxygen_endcond;
 
 			linkFile << "\n\n";
 			countFile << "\n\n";
 			everyonesParentFile << "\n\n";
+			boundFile << "\n\n";
 		}
 
 		//name:
@@ -813,15 +832,18 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			linkFile << indention << "/** Field that incapsulates all objects and counts to which object was linked*/\n";
 			countFile << indention << "/** Link to single object which holds object's count along with object's pointer.*/\n";
 			everyonesParentFile << indention << "/** All design types inherited from this class to permit objects storage within single array.*/\n";
+			boundFile << indention << "/** Relation of tables names to it's data.*/\n";
 			linkFile << indention << "public class " << linkName << "\n";
 			countFile << indention << "public class " << countName << "\n";
 			everyonesParentFile << indention << "public class " << everyonesParentName << "\n";
+			boundFile << indention << "public class " << boundName << "\n";
 		}
 
 		//body open:
 		linkFile << indention << "{\n";
 		countFile << indention << "{\n";
 		everyonesParentFile << indention << "{\n";
+		boundFile << indention << "{\n";
 
 		//fields:
 		//link-specific:
@@ -834,6 +856,11 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		countFile << indention << indention << str(boost::format("public var count:int;\n\n"));
 		//everyones-parent specific:
 		//...
+		//bound specific:
+		boundFile << indention << indention << str(boost::format("/** Table's name without any modifications. Defined within constructor.*/\n"));
+		boundFile << indention << indention << str(boost::format("public var tableName:String;\n"));
+		boundFile << indention << indention << str(boost::format("/** Data objects of this table. Vector of objects inherited at least from \"%s\". Defined within constructor.*/\n") % everyonesParentName);
+		boundFile << indention << indention << str(boost::format("public var objects:Object;\n"));
 
 
 		//constructor:
@@ -841,12 +868,15 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		//initialization:
 		linkFile << indention << indention << "/** All counts at once.*/\n";
 		countFile << indention << indention << "/** Both pointer and count at construction.*/\n";
+		boundFile << indention << indention << "/** Both name and array at construction.*/\n";
 		linkFile << indention << indention << "public function " << linkName << "(links:Array)\n";
 		countFile << indention << indention << "public function " << countName << str(boost::format("(object:%s, count:int)\n") % everyonesParentName);
+		boundFile << indention << indention << "public function " << boundName << str(boost::format("(tableName:String, objects:Object)\n"));
 
 		//definition:
 		linkFile << indention << indention << "{\n";
 		countFile << indention << indention << "{\n";
+		boundFile << indention << indention << "{\n";
 
 		//definition:
 		//link-specific:
@@ -857,20 +887,26 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		//count-specific:
 		countFile << indention << indention << indention << "this.object = object;\n";
 		countFile << indention << indention << indention << "this.count = count;\n";
+		//bound-specific:
+		boundFile << indention << indention << indention << "this.tableName = tableName;\n";
+		boundFile << indention << indention << indention << "this.objects = objects;\n";
 
 		linkFile << indention << indention << "}\n";
 		countFile << indention << indention << "}\n";
+		boundFile << indention << indention << "}\n";
 
 
 		//body close:
 		linkFile << indention << "}\n";
 		countFile << indention << "}\n";
 		everyonesParentFile << indention << "}\n";
+		boundFile << indention << "}\n";
 
 		//package close:
 		linkFile << "}\n\n";
 		countFile << "}\n\n";
 		everyonesParentFile << "}\n\n";
+		boundFile << "}\n\n";
 	}
 
 
