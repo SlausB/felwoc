@@ -298,6 +298,14 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 {
 	overallNamespace = config.get<std::string>("namespace", "design");
 	targetFolder = config.get<std::string>("as3_target_folder", "./as3/code/design");
+	//get rid of last folder separator:
+	{
+		char last = *(targetFolder.end());
+		if(last == '/' || last == '\\')
+		{
+			targetFolder.resize(targetFolder.size() - 1);
+		}
+	}
 
 	boost::filesystem::create_directories(targetFolder);
 	boost::filesystem::create_directory(targetFolder + "/infos");
