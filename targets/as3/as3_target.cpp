@@ -22,6 +22,21 @@ const char* findLinkTargetFunctionName = "FindLinkTarget";
 
 const char* allTablesName = "__all";
 
+/** Package where all code will be put.*/
+const char* overallNamespace = "design";
+
+const std::string targetFolder = "./as3/code/design";
+
+const std::string explanation = "/* This file is generated using the \"fxlsc\" program from XLS design file.\nBugs issues or suggestions can be sent to SlavMFM@gmail.com\n*/\n\n";
+
+const char* doxygen = "// for doxygen to properly generate java-like documentation:\n";
+const char* doxygen_cond = "/// @cond\n";
+const char* doxygen_endcond = "/// @endcond\n";
+
+const char* packageName = "infos";
+
+
+
 
 bool IsLink(Field* field)
 {
@@ -177,7 +192,7 @@ std::string PrintData(Messenger& messenger, const FieldData* fieldData)
 
 	case Field::LINK:
 		{
-			//links connected later:
+			//links will be connected later:
 			return "NULL";
 		}
 		break;
@@ -281,14 +296,7 @@ std::string PrintCommentary(const std::string& indention, const std::string& com
 
 bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 {
-	const std::string targetFolder = "./as3/code";
-	const std::string explanation = "/* This file is generated using the \"fxlsc\" program from XLS design file.\nBugs issues or suggestions can be sent to SlavMFM@gmail.com\n*/\n\n";
-	const char* doxygen = "// for doxygen to properly generate java-like documentation:\n";
-	const char* doxygen_cond = "/// @cond\n";
-	const char* doxygen_endcond = "/// @endcond\n";
-	const char* packageName = "infos";
-
-	boost::filesystem::create_directory(targetFolder);
+	boost::filesystem::create_directories(targetFolder);
 	boost::filesystem::create_directory(targetFolder + "/infos");
 
 	//make class names:
@@ -324,7 +332,12 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			file << doxygen_cond;
 
 			//package:
-			file << "package " << packageName << "\n{\n";
+			file << "package " << overallNamespace << "." << packageName << "\n{\n";
+
+			//imports:
+			file << indention << "import " << overallNamespace << "." << linkName << ";\n";
+			file << indention << "import " << overallNamespace << "." <<  everyonesParentName << ";\n";
+			file << indention << "\n";
 
 			//doxygen:
 			file << indention << doxygen;
@@ -482,18 +495,27 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			file << doxygen_cond;
 
 			//package:
-			file << "package\n{\n";
+			file << "package " << overallNamespace << "\n";
+			file << "{\n";
 
 			//imports:
-			bool once = false;
-			for(std::map<Table*, std::string>::const_iterator it = classNames.begin(); it != classNames.end(); it++)
 			{
-				file << indention << "import " << packageName << "." << it->second << ";\n";
-				once = true;
-			}
-			if(once)
-			{
+				//obligatory imports:
+				file << indention << "import " << overallNamespace << "." << linkName << ";\n";
+				file << indention << "import " << overallNamespace << "." << everyonesParentName << ";\n";
 				file << indention << "\n";
+
+				//infos:
+				bool once = false;
+				for(std::map<Table*, std::string>::const_iterator it = classNames.begin(); it != classNames.end(); it++)
+				{
+					file << indention << "import " << overallNamespace << "." << packageName << "." << it->second << ";\n";
+					once = true;
+				}
+				if(once)
+				{
+					file << indention << "\n";
+				}
 			}
 
 			//doxygen:
@@ -749,9 +771,14 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger)
 			everyonesParentFile << doxygen_cond;
 
 			//package:
-			linkFile << "package\n{\n";
-			countFile << "package\n{\n";
-			everyonesParentFile << "package\n{\n";
+			const std::string similarPackage = str(boost::format("package %s\n{\n") % overallNamespace);
+			linkFile << similarPackage;
+			countFile << similarPackage;
+			everyonesParentFile << similarPackage;
+
+			//imports:
+			linkFile << indention << "import " << overallNamespace << "." << countName << ";\n";
+			countFile << indention << "import " << overallNamespace << "." << everyonesParentName << ";\n";
 
 			//doxygen:
 			linkFile << indention << doxygen;
