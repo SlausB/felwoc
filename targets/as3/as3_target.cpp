@@ -35,6 +35,9 @@ const char* doxygen_endcond = "/// @endcond\n";
 
 const char* packageName = "infos";
 
+//appended to all class names:
+const char* postfix = "Info";
+
 
 
 
@@ -317,6 +320,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		Table* table = ast.tables[tableIndex];
 		std::string className = table->lowercaseName;
 		std::transform(className.begin(), ++(className.begin()), className.begin(), ::toupper);
+		className.append(postfix);
 		classNames[table] = className;
 	}
 
