@@ -8,7 +8,7 @@
 class AS3Target: public TargetPlatform
 {
 public:
-	bool Generate(const AST& ast, Messenger& messenger);
+	bool Generate(const AST& ast, Messenger& messenger, const boost::property_tree::ptree& config);
 };
 
 #endif//#ifndef AS3_TARGET_H

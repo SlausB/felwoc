@@ -333,16 +333,17 @@ int main()
 
 	//чтение конфигурационного файла:
 	boost::property_tree::ptree config;
+	const char* iniFileName = "fxlsc.ini";
 	try
 	{
-		boost::property_tree::read_ini("fxlsc.ini", config);
+		boost::property_tree::read_ini(iniFileName, config);
 
 		std::string jsonPrint = config.get<std::string>("json_print", "pretty");
 		prettyPrint = jsonPrint.compare("pretty") == 0;
 	}
 	catch(std::exception& e)
 	{
-		messenger << boost::format("E: \"fxlsc.ini\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % e.what();
+		messenger << boost::format("E: \"%s\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % iniFileName % e.what();
 	}
 	
 	//add generators here:
@@ -378,7 +379,7 @@ int main()
 
 						for(size_t generatorIndex = 0; generatorIndex < platforms.size(); generatorIndex++)
 						{
-							platforms[generatorIndex]->Generate(ast, messenger);
+							platforms[generatorIndex]->Generate(ast, messenger, config);
 						}
 					}
 					processed++;

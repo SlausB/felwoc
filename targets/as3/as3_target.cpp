@@ -11,6 +11,8 @@
 #include <boost/lexical_cast.hpp>
 
 
+std::string targetFolder;
+
 const char* everyonesParentName = "Info";
 	
 const std::string indention = "	";
@@ -23,9 +25,7 @@ const char* findLinkTargetFunctionName = "FindLinkTarget";
 const char* allTablesName = "__all";
 
 /** Package where all code will be put.*/
-const char* overallNamespace = "design";
-
-const std::string targetFolder = "./as3/code/design";
+std::string overallNamespace;
 
 const std::string explanation = "/* This file is generated using the \"fxlsc\" program from XLS design file.\nBugs issues or suggestions can be sent to SlavMFM@gmail.com\n*/\n\n";
 
@@ -294,8 +294,11 @@ std::string PrintCommentary(const std::string& indention, const std::string& com
 }
 
 
-bool AS3Target::Generate(const AST& ast, Messenger& messenger)
+bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::property_tree::ptree& config)
 {
+	overallNamespace = config.get<std::string>("namespace", "design");
+	targetFolder = config.get<std::string>("as3_target_folder", "./as3/code/design");
+
 	boost::filesystem::create_directories(targetFolder);
 	boost::filesystem::create_directory(targetFolder + "/infos");
 
