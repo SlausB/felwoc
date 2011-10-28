@@ -159,7 +159,7 @@ class WorksheetTable
 {
 public:
 	
-	WorksheetTable(Table* table, ExcelFormat::BasicExcelWorksheet* worksheet, const std::string& name): table(table), worksheet(worksheet), name(name), parent(NULL), processed(false)
+	WorksheetTable(Messenger& messenger, Table* table, ExcelFormat::BasicExcelWorksheet* worksheet, const std::string& name): table(table), worksheet(worksheet), name(name), parent(NULL), processed(false)
 	{
 		//reduce rows and columns count:
 		const int librariesRowsCount = worksheet->GetTotalRows();
@@ -494,7 +494,7 @@ void ForEachTable(WorksheetTable* current, std::function<bool(WorksheetTable*)> 
 
 /** Recursively parses columns types from parents tables to children.
 \return false on some error.*/
-bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsing* parsing, const int columnsCount)
+bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsing* parsing)
 {
 	//because this function is called from parsing for each table AND it calls himself due to inheritance - it can be called several times for single table:
 	if(worksheet->processed)
@@ -513,7 +513,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 	{
 		if(worksheet->parent->processed == false)
 		{
-			if(ProcessColumnsTypes(messenger, worksheet->parent, parsing, columnsCount) == false)
+			if(ProcessColumnsTypes(messenger, worksheet->parent, parsing) == false)
 			{
 				return false;
 			}
@@ -522,7 +522,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 	
 	Table* table = worksheet->table;
 	
-	for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < columnsCount; columnIndex++)
+	for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < worksheet->columnsCount; columnIndex++)
 	{
 		//if current column must not be compiled:
 		if(worksheet->columnToggles.find(columnIndex) != worksheet->columnToggles.end())
@@ -621,7 +621,7 @@ bool ProcessColumnsTypes(Messenger& messenger, WorksheetTable* worksheet, Parsin
 	
 	
 	//commentaries and names:
-	for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < columnsCount; columnIndex++)
+	for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < worksheet->columnsCount; columnIndex++)
 	{
 		if(worksheet->columnToggles.find(columnIndex) == worksheet->columnToggles.end())
 		{
@@ -1191,7 +1191,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 			return false;
 		}
 		
-		worksheets.push_back(new WorksheetTable(NULL, worksheet, worksheetName));
+		worksheets.push_back(new WorksheetTable(messenger, NULL, worksheet, worksheetName));
 
 		/*std::ostringstream oss;
 		worksheets[worksheetIndex]->worksheet->Print(oss);
@@ -1402,7 +1402,7 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 	//reading fields types:
 	//to get types of inherited columns from parents it's need to have such parents to be already processed - so process all tables starting from it's parents:
 	FOR_EACH_WORKSHEET(worksheet)
-		if(ProcessColumnsTypes(messenger, worksheet, this, worksheet->columnsCount) == false)
+		if(ProcessColumnsTypes(messenger, worksheet, this) == false)
 		{
 			return false;
 		}
