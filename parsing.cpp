@@ -1624,9 +1624,17 @@ bool Parsing::ProcessXLS(AST& ast, Messenger& messenger, const std::string& file
 					std::vector<FieldData*>& row = count.table->matrix[objectRowIndex];
 					for(size_t objectColumnIndex = 0; objectColumnIndex < row.size(); objectColumnIndex++)
 					{
-						if(row[objectColumnIndex]->field->type == Field::SERVICE)
+						FieldData* fieldData = row[objectColumnIndex];
+						Field* field = fieldData->field;
+						if(field->type == Field::INHERITED)
 						{
-							Service* service = (Service*)(row[objectColumnIndex]);
+							fieldData = ((Inherited*)fieldData)->fieldData;
+							field = ((InheritedField*)field)->parentField;
+						}
+
+						if(field->type == Field::SERVICE)
+						{
+							Service* service = (Service*)(fieldData);
 							ServiceField* serviceField = (ServiceField*)service->field;
 							if(serviceField->serviceType == ServiceField::ID)
 							{
