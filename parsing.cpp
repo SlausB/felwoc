@@ -1026,7 +1026,7 @@ FieldData* ProcessFieldsData(Messenger& messenger, WorksheetTable* worksheet, Ex
 							{
 								for(size_t targetTableFieldIndex = 0; targetTableFieldIndex < worksheet->table->fields.size(); targetTableFieldIndex++)
 								{
-									Field* targetTableField = table->fields[targetTableFieldIndex];
+									Field* targetTableField = worksheet->table->fields[targetTableFieldIndex];
 									if(targetTableField->type == Field::SERVICE)
 									{
 										ServiceField* serviceField = (ServiceField*)targetTableField;
