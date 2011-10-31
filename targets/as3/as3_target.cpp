@@ -856,7 +856,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		countFile << indention << indention << str(boost::format("/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/\n"));
 		countFile << indention << indention << str(boost::format("public var count:int;\n\n"));
 		//everyones-parent specific:
-		//...
+		countFile << indention << indention << str(boost::format("/** Any data which can be set by end-user.*/\n"));
+		countFile << indention << indention << str(boost::format("public var opaqueData:*;\n\n"));
 		//bound specific:
 		boundFile << indention << indention << str(boost::format("/** Table's name without any modifications. Defined within constructor.*/\n"));
 		boundFile << indention << indention << str(boost::format("public var tableName:String;\n"));
