@@ -41,6 +41,8 @@ const char* postfix = "Info";
 //name of class which incapsulates table properties and array of it's objects:
 const char* boundName = "Bound";
 
+const std::string tabName = "__tabName";
+
 
 
 
@@ -467,7 +469,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			file << indention << indention << "{\n";
 			file << indention << indention << indention << "if(args.length <= 0) return;\n";
 			file << indention << indention << indention << "\n";
-			int argIndex = 0;
+			file << indention << indention << indention << "this." << tabName << " = args[0];\n";
+			int argIndex = 1;
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
 				Field* field = table->fields[fieldIndex];
@@ -623,7 +626,8 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			{
 				file << indention << indention << indention << table->lowercaseName << ".push(new " << classNames[table] << "(";
 
-				bool once = false;
+				file << "\"" << table->realName << "\"";
+
 				for(std::vector<FieldData*>::const_iterator column = row->begin(); column != row->end(); column++)
 				{
 					FieldData* fieldData = *column;
@@ -633,13 +637,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 						continue;
 					}
 
-					if(once)
-					{
-						file << ", ";
-					}
-					once = true;
-
-					file << PrintData(messenger, fieldData);
+					file << ", " << PrintData(messenger, fieldData);
 				}
 
 				file << "));\n";
@@ -856,8 +854,12 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		countFile << indention << indention << str(boost::format("/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/\n"));
 		countFile << indention << indention << str(boost::format("public var count:int;\n\n"));
 		//everyones-parent specific:
-		countFile << indention << indention << str(boost::format("/** Any data which can be set by end-user.*/\n"));
-		countFile << indention << indention << str(boost::format("public var opaqueData:*;\n\n"));
+		everyonesParentFile << indention << indention << str(boost::format("/** Any data which can be set by end-user.*/\n"));
+		everyonesParentFile << indention << indention << str(boost::format("public var __opaqueData:*;\n"));
+		everyonesParentFile << indention << indention << str(boost::format("/** Name of tab where this type was defined.*/\n"));
+		everyonesParentFile << indention << indention << str(boost::format("public var %s:String;\n") % tabName);
+		everyonesParentFile << indention << indention << str(boost::format("/** Tab's short name to store it on server.*/\n"));
+		everyonesParentFile << indention << indention << str(boost::format("public var __tabAlias:String;\n"));
 		//bound specific:
 		boundFile << indention << indention << str(boost::format("/** Table's name without any modifications. Defined within constructor.*/\n"));
 		boundFile << indention << indention << str(boost::format("public var tableName:String;\n"));
