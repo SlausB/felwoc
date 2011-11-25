@@ -22,14 +22,11 @@
 
 #include "data_source/ods_as_xml/ods_as_xml.h"
 
+//print test:
+#include <fstream>
+
 ConsoleOutput consoleOutput;
 Messenger messenger(&consoleOutput);
-
-
-char* UNDEFINED_NAME = "__undefined_name__";
-char* UNDEFINED_VALUE = "__undefined_value__";
-char* NULL_NAME = "__null_name__";
-char* UNKNOWN_VALUE = "__unknown_value__";
 
 void TruncateValue(std::string& valueAsString)
 {
@@ -64,7 +61,8 @@ int main()
 	}
 	catch(std::exception& e)
 	{
-		messenger << boost::format("E: \"%s\" was NOT loaded. Exception: \"%s\". Proceeding with the default settings.\n") % iniFileName % e.what();
+		messenger << boost::format("E: configuration file \"%s\" was NOT loaded. Exception: \"%s\". Create proper configuration file and run again.\n") % iniFileName % e.what();
+		return 1;
 	}
 	
 	//add generators here:
@@ -109,16 +107,23 @@ int main()
 			}
 		}
 	}*/
-	OdsAsXml xmlAsOds(sourceFileName.c_str());
+	OdsAsXml xmlAsOds(sourceFileName.c_str(), &messenger);
+	if(xmlAsOds.IsOk())
+	{
+		std::ofstream testResult("my.ods.stretched.txt");
+		xmlAsOds.GetSpreadsheet(2)->Print(&testResult);
+		testResult.flush();
+		testResult.close();
+	}
 
-	if(processed <= 0)
+	/*if(processed <= 0)
 	{
 		MSG(boost::format("W: no \"xls\" files found within executable's directory.\n"));
 	}
 	else
 	{
 		MSG(boost::format("I: All done. Hit Enter to exit...\n"));
-	}
+	}*/
 
 	getchar();
 
