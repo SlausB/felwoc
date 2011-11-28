@@ -189,7 +189,7 @@ public:
 		}
 		if(resultIndex >= (int)table->fields.size())
 		{
-			MSG(boost::format("E: PROGRAM ERROR: resultIndex = %d is more that fields.size() = %u. Refer to software supplier.\n") % resultIndex % table->fields.size());
+			MSG(boost::format("E: PROGRAM ERROR: resultIndex = %d is more than fields.size() = %u. Refer to software supplier.\n") % resultIndex % table->fields.size());
 			return NULL;
 		}
 		return table->fields[resultIndex];
