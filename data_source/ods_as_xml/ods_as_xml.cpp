@@ -215,11 +215,22 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 	CHECK_NULL(xmlSpreadsheets);
 	for(pugi::xml_node_iterator xmlTableIt = xmlSpreadsheets.begin(); xmlTableIt != xmlSpreadsheets.end(); xmlTableIt++)
 	{
+		//needed tables are just "table:table", don't know what others are so just skip them:
+		if(strcmp(xmlTableIt->name(), "table:table") != 0)
+		{
+			continue;
+		}
+
 		boost::shared_ptr<OdsSpreadsheet> addingSpreadsheet = boost::make_shared<OdsSpreadsheet>();
 		
 		pugi::xml_attribute xmlTableName = xmlTableIt->attribute("table:name");
 		CHECK_NULL(xmlTableName);
 		addingSpreadsheet->name = xmlTableName.value();
+		if(addingSpreadsheet->name.compare("Constants") == 0)
+		{
+			//break here...
+			printf("");
+		}
 
 		//for each row:
 		int rowIndex = 0;
@@ -275,19 +286,14 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 							return;
 						}
 					}
-					else if(strcmp(xmlCellType.value(), "string") == 0)
+					//here was single type "string" but some other types holds literal data too such as "date" so will not handle all of them separately:
+					else
 					{
 						addingCell->type = Cell::STRING;
 
 						pugi::xml_node xmlText = xmlCellIt->child("text:p").first_child();
 						CHECK_NULL(xmlText);
 						addingCell->asString = xmlText.value();
-					}
-					else
-					{
-						messenger->write(boost::format("E: PROGRAM ERROR: cell's type was not resolved. Refer to software supplier.\n"));
-						isOk = false;
-						return;
 					}
 				}
 
@@ -365,6 +371,44 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 					messenger->write(boost::format("E: PROGRAM ERROR: rows have different amount of columns. Refer to software supplier.\n"));
 					isOk = false;
 					return;
+				}
+			}
+		}
+
+		//don't know why but XML has cell fields with attributes such as "<table:table-cell table:number-columns-repeated="1011"/>" so get rid of fully undefined columns:
+		if(addingSpreadsheet->cells.size() > 0)
+		{
+			//while there are some columns:
+			for(;;)
+			{
+				if(addingSpreadsheet->cells.front().size() > 0)
+				{
+					bool allUndefined = true;
+					for(int rowIndex = 0; rowIndex < addingSpreadsheet->cells.size(); rowIndex++)
+					{
+						if(addingSpreadsheet->cells[rowIndex].back()->GetType() != Cell::UNDEFINED)
+						{
+							allUndefined = false;
+							break;
+						}
+					}
+
+					if(allUndefined)
+					{
+						for(int i = 0; i < addingSpreadsheet->cells.size(); i++)
+						{
+							addingSpreadsheet->cells[i].pop_back();
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
+				//all cells within all rows are undefines so think that there are no cells at all:
+				else
+				{
+					addingSpreadsheet->cells.clear();
 				}
 			}
 		}

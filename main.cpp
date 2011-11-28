@@ -65,13 +65,6 @@ int main()
 		return 1;
 	}
 	
-	//add generators here:
-	std::vector<TargetPlatform*> platforms;
-	platforms.push_back(new AS3Target);
-	
-	
-	Parsing parsing;
-	
 	//теперь только один файл - указанный в инициализационном файле:
 	/*//итерация по всем .xls-файлам в текущей папке:
 	int processed = 0;
@@ -110,10 +103,31 @@ int main()
 	OdsAsXml xmlAsOds(sourceFileName.c_str(), &messenger);
 	if(xmlAsOds.IsOk())
 	{
-		std::ofstream testResult("my.ods.stretched.txt");
-		xmlAsOds.GetSpreadsheet(2)->Print(&testResult);
-		testResult.flush();
-		testResult.close();
+		//add generators here:
+		std::vector<TargetPlatform*> platforms;
+		platforms.push_back(new AS3Target);
+
+		for(int i = 0; i < xmlAsOds.GetSpreadsheetsCount(); i++)
+		{
+			boost::shared_ptr<Spreadsheet> spreadsheet = xmlAsOds.GetSpreadsheet(i);
+			if(spreadsheet->GetName().compare("Constants") == 0)
+			{
+				boost::shared_ptr<Cell> cell = spreadsheet->GetCell(0, 1);
+				break;
+			}
+		}
+		
+		AST ast;
+		Parsing parsing;
+		if(parsing.ProcessSource(ast, messenger, &xmlAsOds))
+		{
+			messenger.info(boost::format("Successfully compiled.\n"));
+
+			for(size_t generatorIndex = 0; generatorIndex < platforms.size(); generatorIndex++)
+			{
+				platforms[generatorIndex]->Generate(ast, messenger, config);
+			}
+		}
 	}
 
 	/*if(processed <= 0)

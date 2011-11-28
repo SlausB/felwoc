@@ -10,8 +10,7 @@
 
 #include "output/messenger.h"
 
-#include "excel_format/ExcelFormat.h"
-#include "excel_format/BasicExcel.hpp"
+#include "data_source/data_source.h"
 
 
 #define MSG(message) messenger << message;
@@ -41,9 +40,9 @@ public:
 	
 	Parsing();
 	
-	/** Compiles XLS.
-	\return true if everything is fine.*/
-	bool ProcessXLS(AST& ast, Messenger& messenger, const std::string& fileName);
+	/** Compiles data source file.
+	\return true if everything gone fine.*/
+	bool ProcessSource(AST& ast, Messenger& messenger, DataSource* dataSource);
 	
 	/** Splits string, removes all spaces around each part and converts to lowercase.*/
 	static std::vector<std::string> Detach(const std::string& what, const char* delimiters);
