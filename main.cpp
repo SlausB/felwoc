@@ -46,13 +46,13 @@ void TruncateValue(std::string& valueAsString)
 
 int main()
 {
-	FileOutput fileOutput("fxlsc.txt");
+	FileOutput fileOutput("felwoc.txt");
 	messenger.add(&fileOutput);
 
 	//чтение конфигурационного файла:
 	boost::property_tree::ptree config;
 	std::string sourceFileName;
-	const char* iniFileName = "fxlsc.ini";
+	const char* iniFileName = "felwoc.ini";
 	try
 	{
 		boost::property_tree::read_ini(iniFileName, config);
@@ -62,44 +62,10 @@ int main()
 	catch(std::exception& e)
 	{
 		messenger << boost::format("E: configuration file \"%s\" was NOT loaded. Exception: \"%s\". Create proper configuration file and run again.\n") % iniFileName % e.what();
+		getchar();
 		return 1;
 	}
 	
-	//теперь только один файл - указанный в инициализационном файле:
-	/*//итерация по всем .xls-файлам в текущей папке:
-	int processed = 0;
-	boost::filesystem::directory_iterator dirEnd;
-	for(boost::filesystem::directory_iterator it("./"); it != dirEnd; it++)
-	{
-		if(boost::filesystem::is_directory(it->status()) == false)
-		{
-			std::string fileName = it->path().filename().string();
-			const int size = fileName.size();
-			//если файл формата .xls:
-			if(size >= 4)
-			{
-				if(fileName[size - 4] == '.' && 
-					(fileName[size - 3] == 'x' || fileName[size - 3] == 'X') &&
-					(fileName[size - 2] == 'l' || fileName[size - 2] == 'L') &&
-					(fileName[size - 1] == 's' || fileName[size - 1] == 'S'))
-				{
-					AST ast;
-					ast.fileName = fileName;
-					messenger.info(boost::format("------------------------------\nFile \"%s\":\n") % fileName);
-					if(parsing.ProcessXLS(ast, messenger, fileName))
-					{
-						messenger.info(boost::format("Successfully compiled.\n"));
-
-						for(size_t generatorIndex = 0; generatorIndex < platforms.size(); generatorIndex++)
-						{
-							platforms[generatorIndex]->Generate(ast, messenger, config);
-						}
-					}
-					processed++;
-				}
-			}
-		}
-	}*/
 	OdsAsXml xmlAsOds(sourceFileName.c_str(), &messenger);
 	if(xmlAsOds.IsOk())
 	{
@@ -129,15 +95,6 @@ int main()
 			}
 		}
 	}
-
-	/*if(processed <= 0)
-	{
-		MSG(boost::format("W: no \"xls\" files found within executable's directory.\n"));
-	}
-	else
-	{
-		MSG(boost::format("I: All done. Hit Enter to exit...\n"));
-	}*/
 
 	getchar();
 
