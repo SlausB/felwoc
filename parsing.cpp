@@ -462,7 +462,11 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 		if(spreadsheet->columnToggles.find(columnIndex) == spreadsheet->columnToggles.end())
 		{
 			Field* field = spreadsheet->FieldFromColumn(messenger, columnIndex);
-			if(field != NULL)
+			if(field == NULL)
+			{
+				return false;
+			}
+			else;
 			{
 				//commentaries:
 				/*//inherited fields not need to comment:
@@ -671,7 +675,7 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 	return true;
 }
 
-#define LINK_FORMAT_ERROR messenger << (boost::format("E: link at row %d and column %d (%s) within table \"%s\" has wrong format: \"%s\"; it has ot be of type \"first_link_table_name:x(y); second_link_table_name:k(l)\", where \"x\" is objects' integral id and \"y\" is integral count; the same for other links separated by semicolons. If link must not be specified so live field just empty.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % spreadsheet->table->realName % text);
+#define LINK_FORMAT_ERROR messenger << (boost::format("E: link at row %d and column %d (%s) within table \"%s\" has wrong format: \"%s\"; it has ot be of type \"first_link_table_name:x(y); second_link_table_name:k(l)\", where \"x\" is objects' integral id and \"y\" is integral count; the same for other links separated by semicolons. If link must not be specified so leave field just empty.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % spreadsheet->table->realName % text);
 
 /** Returns generated FieldData or NULL on some error.*/
 FieldData* ProcessFieldsData(Messenger& messenger, SpreadsheetTable* spreadsheet, boost::shared_ptr<Cell> dataCell, Parsing* parsing, Field* field, const int rowIndex, const int columnIndex, std::vector<SpreadsheetTable*>& spreadsheets)
@@ -785,6 +789,24 @@ FieldData* ProcessFieldsData(Messenger& messenger, SpreadsheetTable* spreadsheet
 				std::vector<std::string> links = Parsing::Detach(text, ";");
 				for(size_t linkIndex = 0; linkIndex < links.size(); linkIndex++)
 				{
+					//handle very specific links which ends with semicolon ("table:7(6); "):
+					if(linkIndex == (links.size() - 1))
+					{
+						bool empty = true;
+						for(int i = 0; i < links[linkIndex].size(); i++)
+						{
+							if(links[linkIndex][i] != ' ' && links[linkIndex][i] != '	')
+							{
+								empty = false;
+								break;
+							}
+						}
+						if(empty)
+						{
+							break;
+						}
+					}
+
 					//linked object's count:
 					std::vector<std::string> linkAndCount = Parsing::Detach(links[linkIndex], "(");
 					int count = 1;
@@ -1385,7 +1407,7 @@ bool Parsing::ProcessSource(AST& ast, Messenger& messenger, DataSource* dataSour
 			{
 				spreadsheet->table->matrix.push_back(std::vector<FieldData*>());
 
-				for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < spreadsheet->spreadsheet->GetRowsCount(); columnIndex++)
+				for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < spreadsheet->spreadsheet->GetColumnsCount(); columnIndex++)
 				{
 					Field* field = spreadsheet->FieldFromColumn(messenger, columnIndex);
 					if(field != NULL)

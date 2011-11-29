@@ -412,6 +412,28 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 				}
 			}
 		}
+		//the same for rows:
+		while(addingSpreadsheet->cells.empty() == false)
+		{
+			bool empty = true;
+			for(int columnIndex = 0; columnIndex < addingSpreadsheet->cells.back().size(); columnIndex++)
+			{
+				if(addingSpreadsheet->cells.back()[columnIndex]->GetType() != Cell::UNDEFINED)
+				{
+					empty = false;
+					break;
+				}
+			}
+
+			if(empty)
+			{
+				addingSpreadsheet->cells.pop_back();
+			}
+			else
+			{
+				break;
+			}
+		}
 
 		spreadsheets.push_back(boost::dynamic_pointer_cast<Spreadsheet, OdsSpreadsheet>(addingSpreadsheet));
 	}
