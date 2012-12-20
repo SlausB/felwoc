@@ -529,6 +529,11 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			//imports:
 			{
 				//obligatory imports:
+				//to print some errors when they happen:
+				file << indention << "import com.junkbyte.console.Cc;\n";
+				file << indention << "import flash.utils.getQualifiedClassName;\n";
+				file << indention << "\n";
+				//ApathySync's obligatory:
 				file << indention << "import " << overallNamespace << "." << linkName << ";\n";
 				file << indention << "import " << overallNamespace << "." << everyonesParentName << ";\n";
 				file << indention << "import " << overallNamespace << "." << boundName << ";\n";
@@ -767,6 +772,40 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "return null;\n";
 			file << indention << indention << "}\n";
+		}
+
+		//function which safely obtains object of specified class from provided link:
+		{
+			file << indention << indention << "\n";
+			file << indention << indention << "/** Obtain link at specified index of specified type.\n";
+			file << indention << indention << "\\param from Where to lookup for link.\n";
+			file << indention << indention << "\\param index Place of obtaining link from (including) zero. NULL will be returned and error printed if index is out of range.\n";
+			file << indention << indention << "\\param type Class of obtaining link. NULL will be returned and error printed if obtained link cannot be cast to specified class.\n";
+			file << indention << indention << "\\param context Prefix for outputting error. Type something here to get understanding of where error occured when it will.*/\n";
+			file << indention << indention << "public static function GetLink( from:Link, index:int, type:Class, context:String ): Count\n";
+			file << indention << indention << "{\n";
+			file << indention << indention << indention << "if ( from == null || type == null || context == null )\n";
+			file << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << "Cc.error( \"E: \" + context + \": some of params is null.\" );\n";
+			file << indention << indention << indention << indention << "return null;\n";
+			file << indention << indention << indention << "}\n";
+			file << indention << indention << indention << "\n";
+			file << indention << indention << indention << "if ( index >= from.links.length )\n";
+			file << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << "Cc.error( \"E: \" + context + \": requested link at index \" + index + \" but there are just \" + from.links.length + \" links. Returning null.\");\n";
+			file << indention << indention << indention << indention << "return null;\n";
+			file << indention << indention << indention << "}\n";
+			file << indention << indention << indention << "\n";
+			file << indention << indention << indention << "var target:Object = from.links[ index ].object;\n";
+			file << indention << indention << indention << "if ( ( target is type ) == false )\n";
+			file << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << "Cc.error( \"E: \" + context + \": requested object of type \\\"\" + getQualifiedClassName( type ) + \"\\\", but object is of type \\\"\" + getQualifiedClassName( target ) + \"\\\" at index \" + index + \". Returning null.\" );\n";
+			file << indention << indention << indention << indention << "return null;\n";
+			file << indention << indention << indention << "}\n";
+			file << indention << indention << indention << "\n";
+			file << indention << indention << indention << "return from.links[ index ];\n";
+			file << indention << indention << "}\n";
+
 		}
 
 
