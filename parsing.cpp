@@ -358,31 +358,31 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 	
 	Table* table = spreadsheet->table;
 	
-	for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < spreadsheet->spreadsheet->GetColumnsCount(); columnIndex++)
+	for ( int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < spreadsheet->spreadsheet->GetColumnsCount(); ++columnIndex )
 	{
 		//if current column must not be compiled:
-		if(spreadsheet->columnToggles.find(columnIndex) != spreadsheet->columnToggles.end())
+		if ( spreadsheet->columnToggles.find( columnIndex ) != spreadsheet->columnToggles.end() )
 		{
 			continue;
 		}
 
 		const int rowIndex = Parsing::ROW_FIELDS_TYPES;
 
-		boost::shared_ptr<Cell> cell = spreadsheet->spreadsheet->GetCell(rowIndex, columnIndex);
-		if(cell->GetType() == Cell::UNDEFINED)
+		boost::shared_ptr< Cell > cell = spreadsheet->spreadsheet->GetCell( rowIndex, columnIndex );
+		if ( cell->GetType() == Cell::UNDEFINED )
 		{
-			MSG(boost::format("E: column's type at row %d and column %d (%s) within table \"%s\" is undefined.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName);
+			MSG( boost::format( "E: column's type at row %d and column %d (%s) within table \"%s\" is undefined.\n" ) % ( rowIndex + 1 ) % ( columnIndex + 1 ) % PrintColumn( columnIndex ) % table->realName );
 			return false;
 		}
 		
 		std::string typeName = cell->GetString();
-		if(typeName.empty())
+		if ( typeName.empty() )
 		{
-			MSG(boost::format("E: cell at row %d and column %d (%s) within table \"%s\" is NOT of literal type. It has to be on of the: %s.\n") % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % table->realName % parsing->fieldKeywords.PrintPossible());
+			MSG( boost::format( "E: cell at row %d and column %d (%s) within table \"%s\" is NOT of literal type. It has to be one of the: %s.\n" ) % ( rowIndex + 1 ) % ( columnIndex + 1 ) % PrintColumn( columnIndex ) % table->realName % parsing->fieldKeywords.PrintPossible() );
 			return false;
 		}
 		
-		switch(parsing->fieldKeywords.Match(messenger, spreadsheet->table->realName, rowIndex, columnIndex, typeName))
+		switch ( parsing->fieldKeywords.Match( messenger, spreadsheet->table->realName, rowIndex, columnIndex, typeName ) )
 		{
 		case -1:
 			return false;
@@ -403,49 +403,49 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 		case Field::SERVICE:
 			{
 				ServiceField* serviceField = new ServiceField;
-				spreadsheet->table->fields.push_back(serviceField);
+				spreadsheet->table->fields.push_back( serviceField );
 			}
 			break;
 			
 		case Field::TEXT:
 			{
-				Field* textField = new Field(Field::TEXT);
-				spreadsheet->table->fields.push_back(textField);
+				Field* textField = new Field( Field::TEXT );
+				spreadsheet->table->fields.push_back( textField );
 			}
 			break;
 			
 		case Field::FLOAT:
 			{
-				Field* floatField = new Field(Field::FLOAT);
-				spreadsheet->table->fields.push_back(floatField);
+				Field* floatField = new Field( Field::FLOAT );
+				spreadsheet->table->fields.push_back( floatField );
 			}
 			break;
 			
 		case Field::INT:
 			{
-				Field* intField = new Field(Field::INT);
-				spreadsheet->table->fields.push_back(intField);
+				Field* intField = new Field( Field::INT );
+				spreadsheet->table->fields.push_back( intField );
 			}
 			break;
 			
 		case Field::LINK:
 			{
-				Field* linkField = new Field(Field::LINK);
-				spreadsheet->table->fields.push_back(linkField);
+				Field* linkField = new Field( Field::LINK );
+				spreadsheet->table->fields.push_back( linkField );
 			}
 			break;
 
 		case Field::BOOL:
 			{
-				Field* boolField = new Field(Field::BOOL);
-				spreadsheet->table->fields.push_back(boolField);
+				Field* boolField = new Field( Field::BOOL );
+				spreadsheet->table->fields.push_back( boolField );
 			}
 			break;
 
 		case Field::ARRAY:
 			{
-				Field* arrayField = new Field(Field::ARRAY);
-				spreadsheet->table->fields.push_back(arrayField);
+				Field* arrayField = new Field( Field::ARRAY );
+				spreadsheet->table->fields.push_back( arrayField );
 			}
 			break;
 			
@@ -457,12 +457,12 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 	
 	
 	//commentaries and names:
-	for(int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < spreadsheet->spreadsheet->GetColumnsCount(); columnIndex++)
+	for ( int columnIndex = Parsing::COLUMN_MIN_COLUMN; columnIndex < spreadsheet->spreadsheet->GetColumnsCount(); ++columnIndex )
 	{
-		if(spreadsheet->columnToggles.find(columnIndex) == spreadsheet->columnToggles.end())
+		if ( spreadsheet->columnToggles.find( columnIndex ) == spreadsheet->columnToggles.end() )
 		{
-			Field* field = spreadsheet->FieldFromColumn(messenger, columnIndex);
-			if(field == NULL)
+			Field* field = spreadsheet->FieldFromColumn( messenger, columnIndex );
+			if ( field == NULL )
 			{
 				return false;
 			}
@@ -472,17 +472,17 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 				/*//inherited fields not need to comment:
 				if(field->type != Field::INHERITED)*/
 				{
-					boost::shared_ptr<Cell> commentCell = spreadsheet->spreadsheet->GetCell(Parsing::ROW_FIELDS_COMMENTS, columnIndex);
-					if(commentCell->GetType() == Cell::UNDEFINED)
+					boost::shared_ptr< Cell > commentCell = spreadsheet->spreadsheet->GetCell( Parsing::ROW_FIELDS_COMMENTS, columnIndex );
+					if ( commentCell->GetType() == Cell::UNDEFINED )
 					{
-						MSG(boost::format("W: commentary for column %d (%s) at row %d within table \"%s\" omitted - it is not good.\n") % (columnIndex + 1) % PrintColumn(columnIndex) % (int)Parsing::ROW_FIELDS_COMMENTS % spreadsheet->table->realName);
+						MSG( boost::format( "W: commentary for column %d (%s) at row %d within table \"%s\" omitted - it is not good.\n" ) % ( columnIndex + 1 ) % PrintColumn( columnIndex ) % ( int ) Parsing::ROW_FIELDS_COMMENTS % spreadsheet->table->realName );
 					}
 					else
 					{
 						std::string commentary = commentCell->GetString();
-						if(commentary.empty())
+						if ( commentary.empty() )
 						{
-							MSG(boost::format("W: commentary for column %d (%s) at row %d within table \"%s\" is not of literal type. It will be skipped.\n") % (columnIndex + 1) % PrintColumn(columnIndex) % (int)Parsing::ROW_FIELDS_COMMENTS % spreadsheet->table->realName);
+							MSG( boost::format( "W: commentary for column %d (%s) at row %d within table \"%s\" is not of literal type. It will be skipped.\n" ) % ( columnIndex + 1 ) % PrintColumn( columnIndex ) % ( int ) Parsing::ROW_FIELDS_COMMENTS % spreadsheet->table->realName );
 						}
 						else
 						{
@@ -522,7 +522,7 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 						field->name = fieldName;
 						
 						//field type's specific:
-						switch(field->type)
+						switch ( field->type )
 						{
 						/*case Field::INHERITED:
 							{
@@ -577,25 +577,25 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 						//if this field was inherited, wrap it into appropriate container:
 						if(spreadsheet->parent != NULL)
 						{
-							ForEachTable(spreadsheet->parent, [spreadsheet, field](SpreadsheetTable* parent) -> bool
+							ForEachTable( spreadsheet->parent, [ spreadsheet, field ]( SpreadsheetTable* parent ) -> bool
 							{
-								for(size_t i = 0; i < parent->table->fields.size(); i++)
+								for ( size_t i = 0; i < parent->table->fields.size(); ++i )
 								{
 									//it's need to find root table where inherited field was firstly defined, so skip intermediate parents where that field was inherited too:
-									if(parent->table->fields[i]->type != Field::INHERITED && parent->table->fields[i]->name.compare(field->name) == 0)
+									if ( parent->table->fields[ i ]->type != Field::INHERITED && parent->table->fields[ i ]->name.compare( field->name ) == 0 )
 									{
 										InheritedField* wrapped = new InheritedField;
 										wrapped->name = field->name;
 										wrapped->commentary = field->commentary;
-										wrapped->parentField = parent->table->fields[i];
+										wrapped->parentField = parent->table->fields[ i ];
 										wrapped->parent = parent->table;
 
 										//replace previously created with new one:
-										for(size_t changingFieldIndex = 0; changingFieldIndex < spreadsheet->table->fields.size(); changingFieldIndex++)
+										for ( size_t changingFieldIndex = 0; changingFieldIndex < spreadsheet->table->fields.size(); ++changingFieldIndex )
 										{
-											if(spreadsheet->table->fields[changingFieldIndex]->name.compare(field->name) == 0)
+											if ( spreadsheet->table->fields[ changingFieldIndex ]->name.compare( field->name ) == 0 )
 											{
-												spreadsheet->table->fields[changingFieldIndex] = wrapped;
+												spreadsheet->table->fields[ changingFieldIndex ] = wrapped;
 												break;
 											}
 										}
@@ -616,43 +616,49 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 	}
 	
 	//check that all inherited fields was defined:
-	if(spreadsheet->parent != NULL && spreadsheet->table->type != Table::VIRTUAL)
+	if ( spreadsheet->parent != NULL && spreadsheet->table->type != Table::VIRTUAL )
 	{
 		//all inherited fields:
-		std::list<DerivedField> derivedFields;
-		ForEachTable(spreadsheet->parent, [&derivedFields](SpreadsheetTable* parent) -> bool
+		std::list< DerivedField > derivedFields;
+		ForEachTable( spreadsheet->parent, [ &derivedFields ]( SpreadsheetTable* parent ) -> bool
 		{
-			for(size_t i = 0; i < parent->table->fields.size(); i++)
+			for ( size_t i = 0; i < parent->table->fields.size(); ++i )
 			{
 				DerivedField derivedField;
-				derivedField.field = parent->table->fields[i];
+				derivedField.field = parent->table->fields[ i ];
 				derivedField.spreadsheetTable = parent;
 
-				derivedFields.push_back(derivedField);
+				derivedFields.push_back( derivedField );
 			}
 			return true;
 		});
 		
 		//for each derived field:
-		for(std::list<DerivedField>::iterator it = derivedFields.begin(); it != derivedFields.end(); it++)
+		for ( std::list<DerivedField>::iterator derivedIt = derivedFields.begin(); derivedIt != derivedFields.end(); ++derivedIt )
 		{
 			bool found = false;
 			
 			//this table fields:
-			for(size_t thisFieldIndex = 0; thisFieldIndex < table->fields.size(); thisFieldIndex++)
+			for ( size_t thisFieldIndex = 0; thisFieldIndex < table->fields.size(); ++thisFieldIndex )
 			{
-				Field* thisField = table->fields[thisFieldIndex];
+				Field* thisField = table->fields[ thisFieldIndex ];
 
-				if(thisField->type == Field::INHERITED)
+				if ( thisField->type == Field::INHERITED )
 				{
-					if(it->field->name.compare(thisField->name) == 0)
+					if ( derivedIt->field->name.compare( thisField->name ) == 0 )
 					{
-						InheritedField* inheritedField = (InheritedField*)thisField;
+						InheritedField* inheritedField = ( InheritedField* ) thisField;
+						Field* derivedField = derivedIt->field;
+						//if derived field is inherited too - we must check types with it's parent as overall's parent:
+						if ( derivedField->type == Field::INHERITED )
+						{
+							derivedField = ( ( InheritedField* ) derivedField )->parentField;
+						}
 
 						//check that types are similar:
-						if(it->field->type != inheritedField->parentField->type)
+						if ( derivedField->type != inheritedField->parentField->type )
 						{
-							MSG(boost::format("E: derived field \"%s\" within table \"%s\" was defined as \"%s\" within parent table \"%s\" where it is defined as \"%s\". Types must be similar.\n") % thisField->name % spreadsheet->table->realName % parsing->fieldKeywords.Find(messenger, thisField->type) % it->spreadsheetTable->table->realName % parsing->fieldKeywords.Find(messenger, it->field->type));
+							MSG( boost::format( "E: derived field \"%s\" within table \"%s\" was defined as \"%s\" within parent table \"%s\" where it is defined as \"%s\". Types must be similar.\n" ) % thisField->name % spreadsheet->table->realName % parsing->fieldKeywords.Find(messenger, thisField->type) % derivedIt->spreadsheetTable->table->realName % parsing->fieldKeywords.Find( messenger, derivedField->type ) );
 							return false;
 						}
 
@@ -662,9 +668,9 @@ bool ProcessColumnsTypes(Messenger& messenger, SpreadsheetTable* spreadsheet, Pa
 				}
 			}
 			
-			if(found == false)
+			if ( found == false )
 			{
-				MSG(boost::format("E: derived field \"%s\" was NOT defined within table \"%s\".\n") % (*it).field->name % table->realName);
+				MSG( boost::format( "E: derived field \"%s\" was NOT defined within table \"%s\".\n" ) % derivedIt->field->name % table->realName );
 				return false;
 			}
 		}
