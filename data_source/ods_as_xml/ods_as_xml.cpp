@@ -144,7 +144,7 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 	unzFile sourceFile = unzOpen(fileName);
 	if(sourceFile == NULL)
 	{
-		messenger->write(boost::format("E: source file \"%s\" was NOT opened: it does not exist or invalid).\n"));
+		messenger->write( boost::format( "E: source file \"%s\" was NOT opened: it does not exist or invalid).\n" ) % fileName );
 		isOk = false;
 		return;
 	}

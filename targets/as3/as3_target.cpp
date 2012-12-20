@@ -10,6 +10,8 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include "../../smhasher/MurmurHash3.h"
+
 
 std::string targetFolder;
 
@@ -221,16 +223,16 @@ std::string PrintData(Messenger& messenger, const FieldData* fieldData)
 			Array* asArray = (Array*)fieldData;
 
 			std::string arrayData = "[";
-			for(size_t i = 0; i < asArray->values.size(); i++)
+			for ( size_t i = 0; i < asArray->values.size(); ++i )
 			{
-				if(i > 0)
+				if ( i > 0 )
 				{
-					arrayData.append(", ");
+					arrayData.append( ", " );
 				}
 
-				arrayData.append(boost::lexical_cast<std::string>(asArray->values[i]));
+				arrayData.append( boost::lexical_cast< std::string >( asArray->values[ i ] ) );
 			}
-			arrayData.append("]");
+			arrayData.append( "]" );
 
 			return arrayData;
 		}
@@ -238,43 +240,43 @@ std::string PrintData(Messenger& messenger, const FieldData* fieldData)
 
 	
 	default:
-		messenger.error(boost::format("E: AS3: PROGRAM ERROR: PrintData(): type = %d is undefined. Returning empty string. Refer to software supplier.\n") % fieldData->field->type);
+		messenger.error( boost::format( "E: AS3: PROGRAM ERROR: PrintData(): type = %d is undefined. Returning empty string. Refer to software supplier.\n" ) % fieldData->field->type );
 	}
 
 	return std::string();
 }
 
 /** Prints simple or multiline commentary with specified indention.*/
-std::string PrintCommentary(const std::string& indention, const std::string& commentary)
+std::string PrintCommentary( const std::string& indention, const std::string& commentary )
 {
 	std::string result;
 	
-	result.append(indention);
-	result.append("/** ");
+	result.append( indention );
+	result.append( "/** " );
 				
 	bool multiline = false;
-	for(size_t i = 0; i < commentary.size(); i++)
+	for ( size_t i = 0; i < commentary.size(); ++i )
 	{
-		if(commentary[i] == '\n')
+		if ( commentary[ i ] == '\n' )
 		{
 			multiline = true;
 			break;
 		}
 	}
 
-	if(multiline)
+	if ( multiline )
 	{
-		result.append("\n");
-		result.append(indention);
+		result.append( "\n" );
+		result.append( indention );
 
 		bool lastIsEscape = false;
-		for(size_t i = 0; i < commentary.size(); i++)
+		for ( size_t i = 0; i < commentary.size(); ++i )
 		{
-			result.push_back(commentary[i]);
+			result.push_back( commentary[ i ] );
 
-			if(commentary[i] == '\n')
+			if ( commentary[ i ] == '\n' )
 			{
-				result.append(indention);
+				result.append( indention );
 
 				lastIsEscape = true;
 			}
@@ -283,45 +285,45 @@ std::string PrintCommentary(const std::string& indention, const std::string& com
 				lastIsEscape = false;
 			}
 		}
-		if(lastIsEscape == false)
+		if ( lastIsEscape == false )
 		{
-			result.append("\n");
+			result.append( "\n" );
 		}
 
-		result.append(indention);
+		result.append( indention );
 	}
 	else
 	{
-		result.append(commentary);
-		result.append(" ");
+		result.append( commentary );
+		result.append( " " );
 	}
 
-	result.append("*/\n");
+	result.append( "*/\n" );
 
 	return result;
 }
 
 
-bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::property_tree::ptree& config)
+bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::property_tree::ptree& config )
 {
-	overallNamespace = config.get<std::string>("namespace", "design");
-	targetFolder = config.get<std::string>("as3_target_folder", "./as3/code/design");
+	overallNamespace = config.get< std::string >( "namespace", "design" );
+	targetFolder = config.get< std::string >( "as3_target_folder", "./as3/code/design" );
 	//get rid of last folder separator:
-	if(targetFolder.empty() == false)
+	if ( targetFolder.empty() == false )
 	{
-		char last = targetFolder[targetFolder.size() - 1];
-		if(last == '/' || last == '\\')
+		char last = targetFolder[ targetFolder.size() - 1 ];
+		if ( last == '/' || last == '\\' )
 		{
-			targetFolder.resize(targetFolder.size() - 1);
+			targetFolder.resize( targetFolder.size() - 1 );
 		}
 	}
 
-	boost::filesystem::create_directories(targetFolder);
-	boost::filesystem::create_directory(targetFolder + "/infos");
+	boost::filesystem::create_directories( targetFolder );
+	boost::filesystem::create_directory( targetFolder + "/infos" );
 
 	//make class names:
-	std::map<Table*, std::string> classNames;
-	for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
+	std::map< Table*, std::string > classNames;
+	for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 	{
 		Table* table = ast.tables[tableIndex];
 		std::string className = table->lowercaseName;
@@ -331,15 +333,15 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 	}
 
 	//generate classes:
-	for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
+	for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 	{
-		Table* table = ast.tables[tableIndex];
+		Table* table = ast.tables[ tableIndex ];
 
-		std::string fileName = str(boost::format("%s/infos/%s.as") % targetFolder % classNames[table]);
-		std::ofstream file(fileName, std::ios_base::out);
-		if(file.fail())
+		std::string fileName = str( boost::format( "%s/infos/%s.as" ) % targetFolder % classNames[ table ] );
+		std::ofstream file( fileName, std::ios_base::out );
+		if ( file.fail() )
 		{
-			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % fileName);
+			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % fileName );
 			return false;
 		}
 
@@ -364,42 +366,43 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			file << indention << doxygen;
 			file << indention << doxygen_endcond;
 
-			file << "\n\n";
+			file << indention << "\n";
+			file << indention << "\n";
 		}
 
 		//name:
 		{
-			file << PrintCommentary(indention, table->commentary);
+			file << PrintCommentary( indention, table->commentary );
 
-			std::string parentName = table->parent == NULL ? everyonesParentName : classNames[table->parent];
-			file << indention << str(boost::format("public class %s extends %s\n") % classNames[table] % parentName);
+			std::string parentName = table->parent == NULL ? everyonesParentName : classNames[ table->parent ];
+			file << indention << str( boost::format( "public class %s extends %s\n" ) % classNames[ table ] % parentName );
 		}
 
 		//body open:
 		file << indention << "{\n";
 
 		//fields:
-		for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
+		for ( size_t fieldIndex = 0; fieldIndex < table->fields.size(); ++fieldIndex )
 		{
-			Field* field = table->fields[fieldIndex];
+			Field* field = table->fields[ fieldIndex ];
 
-			if(field->type == Field::INHERITED)
+			if ( field->type == Field::INHERITED )
 			{
 				continue;
 			}
 
 			//commentary:
-			file << PrintCommentary(indention + indention, field->commentary);
+			file << PrintCommentary( indention + indention, field->commentary );
 
 			//field:
 
-			const std::string fieldsTypeName = PrintType(messenger, field);
-			if(fieldsTypeName.empty())
+			const std::string fieldsTypeName = PrintType( messenger, field );
+			if ( fieldsTypeName.empty() )
 			{
 				return false;
 			}
 			file << indention << indention << "public ";
-			if(table->type == Table::PRECISE)
+			if ( table->type == Table::PRECISE )
 			{
 				file << "static const ";
 			}
@@ -408,7 +411,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 				file << "var ";
 			}
 			file << field->name << ":";
-			if(IsLink(field))
+			if ( IsLink( field ) )
 			{
 				file << linkName;
 			}
@@ -417,11 +420,11 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 				file << fieldsTypeName;
 			}
 
-			if(table->type == Table::PRECISE)
+			if ( table->type == Table::PRECISE )
 			{
-				if(IsLink(field) == false)
+				if ( IsLink( field ) == false )
 				{
-					file << " = " << PrintData(messenger, table->matrix[0][fieldIndex]);
+					file << " = " << PrintData( messenger, table->matrix[ 0 ][ fieldIndex ] );
 				}
 			}
 
@@ -432,7 +435,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		}
 
 		//constructor:
-		if(table->type != Table::PRECISE && table->type != Table::SINGLE && table->type != Table::VIRTUAL)
+		if ( table->type != Table::PRECISE && table->type != Table::SINGLE && table->type != Table::VIRTUAL )
 		{
 			//declaration:
 			file << indention << indention << "/** All (including inherited) fields (excluding links) are defined here. To let define classes only within it's classes without inherited constructors used udnefined arguments.*/\n";
@@ -461,15 +464,18 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 				}
 				file << field->name << ":" << fieldsTypeName;
 			}*/
-			file << "... args";
+			file << " ... args ";
 			file << ")\n";
 		
 
 			//definition:
 			file << indention << indention << "{\n";
-			file << indention << indention << indention << "if(args.length <= 0) return;\n";
+			file << indention << indention << indention << "if ( args.length <= 0 )\n";
+			file << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << "return;\n";
+			file << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "\n";
-			file << indention << indention << indention << "this." << tabName << " = args[0];\n";
+			file << indention << indention << indention << "this." << tabName << " = args[ 0 ];\n";
 			int argIndex = 1;
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
@@ -499,11 +505,11 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 	{
 		const char* incapsulationName = "Infos";
 
-		std::string fileName = str(boost::format("%s/%s.as") % targetFolder % incapsulationName);
-		std::ofstream file(fileName.c_str());
-		if(file.fail())
+		std::string fileName = str( boost::format( "%s/%s.as" ) % targetFolder % incapsulationName );
+		std::ofstream file( fileName.c_str() );
+		if ( file.fail() )
 		{
-			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % fileName);
+			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % fileName );
 			return false;
 		}
 		
@@ -559,27 +565,27 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		file << indention << "{\n";
 
 		//fields:
-		for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
+		for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 		{
-			Table* table = ast.tables[tableIndex];
+			Table* table = ast.tables[ tableIndex ];
 
-			if(table->type == Table::VIRTUAL)
+			if ( table->type == Table::VIRTUAL )
 			{
 				continue;
 			}
 
 			//commentary:
-			file << PrintCommentary(indention + indention, table->commentary);
+			file << PrintCommentary( indention + indention, table->commentary );
 
 			//as field:
 			file << indention << indention << "public var " << table->lowercaseName;
-			switch(table->type)
+			switch ( table->type )
 			{
 			case Table::MANY:
 			//for now there are no differences with MANY:
 			case Table::MORPH:
 				{
-					file << ":Vector.<" << classNames[table] << "> = new Vector.<" << classNames[table] << ">;\n";
+					file << ":Vector.< " << classNames[ table ] << " > = new Vector.< " << classNames[ table ] << " >;\n";
 				}
 				break;
 
@@ -587,20 +593,21 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			//for now there are no differences with PRECISE:
 			case Table::SINGLE:
 				{
-					file << str(boost::format(":%s;\n") % classNames[table]);
+					file << str( boost::format( ":%s;\n" ) % classNames[ table ] );
 				}
 				break;
 
 			default:
-				messenger.error(boost::format("E: AS3: table of type %d with name \"%s\" was NOT implemented. Refer to software supplier.\n") % table->type % table->realName);
+				messenger.error( boost::format( "E: AS3: table of type %d with name \"%s\" was NOT implemented. Refer to software supplier.\n" ) % table->type % table->realName );
 				return false;
 			}
 
 			file << indention << indention << "\n";
 		}
 		//all:
-		file << indention << indention << "/** Array of all arrays. Each element is of type Vector.<" << everyonesParentName << "> */\n";
-		file << indention << indention << "public var " << allTablesName << ":Vector.<" << boundName << "> = new Vector.<" << boundName << ">;\n\n";
+		file << indention << indention << "/** Array of all arrays. Each element is of type Vector.< " << everyonesParentName << " > */\n";
+		file << indention << indention << "public var " << allTablesName << ":Vector.< " << boundName << " > = new Vector.< " << boundName << " >;\n";
+		file << indention << indention << "\n";
 
 		//constructor:
 		//initialization:
@@ -608,39 +615,43 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		file << indention << indention << "public function " << incapsulationName << "()\n";
 		//definition:
 		file << indention << indention << "{\n";
-		for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
+		bool somethingOut = false;
+		for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 		{
-			Table* table = ast.tables[tableIndex];
-			if(table->type != Table::MANY && table->type != Table::MORPH)
+			Table* table = ast.tables[ tableIndex ];
+			if ( table->type != Table::MANY && table->type != Table::MORPH )
 			{
 				continue;
 			}
 
-			if(tableIndex > 0)
+			if ( somethingOut )
 			{
 				file << indention << indention << indention << "\n";
+				somethingOut = false;
 			}
 
 			//data itself:
-			for(std::vector<std::vector<FieldData*> >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); row++)
+			for ( std::vector<std::vector< FieldData* > >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); ++row )
 			{
-				file << indention << indention << indention << table->lowercaseName << ".push(new " << classNames[table] << "(";
+				file << indention << indention << indention << table->lowercaseName << ".push( new " << classNames[ table ] << "( ";
 
 				file << "\"" << table->realName << "\"";
 
-				for(std::vector<FieldData*>::const_iterator column = row->begin(); column != row->end(); column++)
+				for( std::vector< FieldData* >::const_iterator column = row->begin(); column != row->end(); ++column )
 				{
 					FieldData* fieldData = *column;
 
-					if(IsLink(fieldData->field))
+					if ( IsLink( fieldData->field ) )
 					{
 						continue;
 					}
 
-					file << ", " << PrintData(messenger, fieldData);
+					file << ", " << PrintData( messenger, fieldData );
 				}
 
-				file << "));\n";
+				file << " ) );\n";
+
+				somethingOut = true;
 			}
 		}
 		file << indention << indention << indention << "\n";
@@ -671,38 +682,38 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 					atLeastOne = true;
 				
 					int rowIndex = 0;
-					for(std::vector<std::vector<FieldData*> >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); row++, rowIndex++)
+					for ( std::vector< std::vector< FieldData* > >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); ++row, ++rowIndex )
 					{
 						Link* link;
-						if(field->type == Field::LINK)
+						if ( field->type == Field::LINK )
 						{
-							link = (Link*)(row->at(fieldIndex));
+							link = ( Link* ) ( row->at( fieldIndex ) );
 						}
-						else if(field->type == Field::INHERITED)
+						else if ( field->type == Field::INHERITED )
 						{
-							link = (Link*)(((Inherited*)(row->at(fieldIndex)))->fieldData);
+							link = ( Link* ) ( ( ( Inherited* ) ( row->at( fieldIndex ) ) )->fieldData );
 						}
 						else
 						{
-							messenger.error(boost::format("E: AS3: PROGRAM ERROR: linking: field's type = %d is undefined. Refer to software supplier.\n") % field->type);
+							messenger.error( boost::format( "E: AS3: PROGRAM ERROR: linking: field's type = %d is undefined. Refer to software supplier.\n" ) % field->type );
 							return false;
 						}
 
-						file << indention << indention << indention << table->lowercaseName << "[" << rowIndex << "]." << field->name << " = new " << linkName << "([";
-						for(std::vector<Count>::const_iterator count = link->links.begin(); count != link->links.end(); count++)
+						file << indention << indention << indention << table->lowercaseName << "[ " << rowIndex << " ]." << field->name << " = new " << linkName << "( [ ";
+						for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count )
 						{
-							if(count != link->links.begin())
+							if ( count != link->links.begin() )
 							{
 								file << ", ";
 							}
 
-							file << "new " << countName << "(" << incapsulationName << "." << findLinkTargetFunctionName << "(" << count->table->lowercaseName << ", " << count->id << "), " << count->count << ")";
+							file << "new " << countName << "( " << incapsulationName << "." << findLinkTargetFunctionName << "( " << count->table->lowercaseName << ", " << count->id << " ), " << count->count << " )";
 						}
-						file << "]);\n";
+						file << " ] );\n";
 					}
 				}
 
-				if(atLeastOne)
+				if ( atLeastOne )
 				{
 					file << indention << indention << indention << "\n";
 				}
@@ -711,29 +722,48 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		file << indention << indention << indention << "\n";
 		//all manys:
 		{
-			file << indention << indention << indention << "//all tables of type \"many\":\n";
-			for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
-			{
-				Table* table = ast.tables[tableIndex];
+			std::map< uint32_t, std::string > usedHashes;
 
-				if(table->type != Table::MANY)
+			file << indention << indention << indention << "//all tables of type \"many\":\n";
+			for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
+			{
+				Table* table = ast.tables[ tableIndex ];
+				
+				uint32_t hash;
+				MurmurHash3_x86_32( table->lowercaseName.c_str(), table->lowercaseName.size(), 0, &hash );
+				//check that generated hash value doesn't collides with all already generated hash values:
+				for ( std::map< uint32_t, std::string >::iterator it = usedHashes.begin(); it != usedHashes.end(); ++it )
+				{
+					if ( hash == it->first )
+					{
+						messenger << ( boost::format( "E: AS3: hash value generated from table's name \"%s\" collides with one generated from \"%s\". It happens once per ~100000 cases, so you're very \"lucky\" to face it. Change one of these table names' to something else to avoid this problem.\n" ) % table->lowercaseName % it->second );
+						return false;
+					}
+				}
+				usedHashes[ hash ] = table->lowercaseName;
+
+				if ( table->type != Table::MANY )
 				{
 					continue;
 				}
 
-				file << indention << indention << indention << allTablesName << ".push(new " << boundName << "(\"" << table->realName << "\", " << table->lowercaseName << "));\n";
+				file << indention << indention << indention << allTablesName << ".push( new " << boundName << "( \"" << table->realName << "\", " << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hash ) << " ) );\n";
 			}
 		}
 		file << indention << indention << "}\n";
 
 		//function which finds links targets:
 		{
+			file << indention << indention << "\n";
 			file << indention << indention << "/** Looks for link target.*/\n";
-			file << indention << indention << "public static function " << findLinkTargetFunctionName << "(where:Object, id:int): " << everyonesParentName << "\n";
+			file << indention << indention << "public static function " << findLinkTargetFunctionName << "( where:Object, id:int ): " << everyonesParentName << "\n";
 			file << indention << indention << "{\n";
-			file << indention << indention << indention << "for each(var some:Object in where)\n";
+			file << indention << indention << indention << "for each ( var some:Object in where )\n";
 			file << indention << indention << indention << "{\n";
-			file << indention << indention << indention << indention << "if(some.id == id) return some as " << everyonesParentName << ";\n";
+			file << indention << indention << indention << indention << "if ( some.id == id )\n";
+			file << indention << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << indention << "return some as " << everyonesParentName << ";\n";
+			file << indention << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "return null;\n";
 			file << indention << indention << "}\n";
@@ -749,35 +779,35 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 
 	//link, count, everyones parent, bound:
 	{
-		std::string linkFileName = str(boost::format("%s/%s.as") % targetFolder % linkName);
-		std::ofstream linkFile(linkFileName.c_str());
-		if(linkFile.fail())
+		std::string linkFileName = str( boost::format( "%s/%s.as" ) % targetFolder % linkName );
+		std::ofstream linkFile( linkFileName.c_str() );
+		if ( linkFile.fail() )
 		{
-			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % linkFileName);
+			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % linkFileName );
 			return false;
 		}
 		
-		std::string countFileName = str(boost::format("%s/%s.as") % targetFolder % countName);
-		std::ofstream countFile(countFileName.c_str());
-		if(countFile.fail())
+		std::string countFileName = str( boost::format( "%s/%s.as" ) % targetFolder % countName );
+		std::ofstream countFile( countFileName.c_str() );
+		if ( countFile.fail() )
 		{
-			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % countFileName);
+			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % countFileName );
 			return false;
 		}
 
-		std::string everyonesParentFileName = str(boost::format("%s/%s.as") % targetFolder % everyonesParentName);
-		std::ofstream everyonesParentFile(everyonesParentFileName.c_str());
-		if(everyonesParentFile.fail())
+		std::string everyonesParentFileName = str( boost::format( "%s/%s.as" ) % targetFolder % everyonesParentName );
+		std::ofstream everyonesParentFile( everyonesParentFileName.c_str() );
+		if ( everyonesParentFile.fail() )
 		{
-			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % everyonesParentFile);
+			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % everyonesParentFile );
 			return false;
 		}
 
-		std::string boundFileName = str(boost::format("%s/%s.as") % targetFolder % boundName);
-		std::ofstream boundFile (boundFileName.c_str());
-		if(boundFile.fail())
+		std::string boundFileName = str( boost::format( "%s/%s.as" ) % targetFolder % boundName );
+		std::ofstream boundFile( boundFileName.c_str() );
+		if ( boundFile.fail() )
 		{
-			messenger << (boost::format("E: AS3: file \"%s\" was NOT opened.\n") % boundFileName);
+			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % boundFileName );
 			return false;
 		}
 		
@@ -800,7 +830,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			boundFile << doxygen_cond;
 
 			//package:
-			const std::string similarPackage = str(boost::format("package %s\n{\n") % overallNamespace);
+			const std::string similarPackage = str( boost::format( "package %s\n{\n" ) % overallNamespace );
 			linkFile << similarPackage;
 			countFile << similarPackage;
 			everyonesParentFile << similarPackage;
@@ -820,10 +850,10 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 			everyonesParentFile << indention << doxygen_endcond;
 			boundFile << indention << doxygen_endcond;
 
-			linkFile << "\n\n";
-			countFile << "\n\n";
-			everyonesParentFile << "\n\n";
-			boundFile << "\n\n";
+			linkFile << indention << "\n" << indention << "\n";
+			countFile << indention << "\n" << indention << "\n";
+			everyonesParentFile << indention << "\n" << indention << "\n";
+			boundFile << indention << "\n" << indention << "\n";
 		}
 
 		//name:
@@ -861,10 +891,13 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		everyonesParentFile << indention << indention << str(boost::format("/** Tab's short name to store it on server.*/\n"));
 		everyonesParentFile << indention << indention << str(boost::format("public var __tabAlias:String;\n"));
 		//bound specific:
-		boundFile << indention << indention << str(boost::format("/** Table's name without any modifications. Defined within constructor.*/\n"));
-		boundFile << indention << indention << str(boost::format("public var tableName:String;\n"));
-		boundFile << indention << indention << str(boost::format("/** Data objects of this table. Vector of objects inherited at least from \"%s\". Defined within constructor.*/\n") % everyonesParentName);
-		boundFile << indention << indention << str(boost::format("public var objects:Object;\n"));
+		boundFile << indention << indention << str( boost::format( "/** Table's name without any modifications. Defined within constructor.*/\n" ) );
+		boundFile << indention << indention << str( boost::format( "public var tableName:String;\n" ) );
+		boundFile << indention << indention << str( boost::format( "/** Data objects of this table. Vector of objects inherited at least from \"%s\". Defined within constructor.*/\n" ) % everyonesParentName );
+		boundFile << indention << indention << str( boost::format( "public var objects:Object;\n" ) );
+		boundFile << indention << indention << str( boost::format( "/** Hash value from table's lowercase name to differentiate objects of this table from any other objects.*/\n" ) );
+		boundFile << indention << indention << str( boost::format( "public var hash:uint;\n" ) );
+		boundFile << indention << indention << "\n";
 
 
 		//constructor:
@@ -873,9 +906,9 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		linkFile << indention << indention << "/** All counts at once.*/\n";
 		countFile << indention << indention << "/** Both pointer and count at construction.*/\n";
 		boundFile << indention << indention << "/** Both name and array at construction.*/\n";
-		linkFile << indention << indention << "public function " << linkName << "(links:Array)\n";
-		countFile << indention << indention << "public function " << countName << str(boost::format("(object:%s, count:int)\n") % everyonesParentName);
-		boundFile << indention << indention << "public function " << boundName << str(boost::format("(tableName:String, objects:Object)\n"));
+		linkFile << indention << indention << "public function " << linkName << "( links:Array )\n";
+		countFile << indention << indention << "public function " << countName << str( boost::format( "( object:%s, count:int )\n" ) % everyonesParentName );
+		boundFile << indention << indention << "public function " << boundName << str( boost::format( "( tableName:String, objects:Object, hash:uint )\n" ) );
 
 		//definition:
 		linkFile << indention << indention << "{\n";
@@ -884,9 +917,9 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 
 		//definition:
 		//link-specific:
-		linkFile << indention << indention << indention << "for(var i:int = 0; i < links.length; i++)\n";
+		linkFile << indention << indention << indention << "for ( var i:int = 0; i < links.length; ++i )\n";
 		linkFile << indention << indention << indention << "{\n";
-		linkFile << indention << indention << indention << indention << "this.links.push(links[i] as " << countName << ");\n";
+		linkFile << indention << indention << indention << indention << "this.links.push( links[ i ] as " << countName << " );\n";
 		linkFile << indention << indention << indention << "}\n";
 		//count-specific:
 		countFile << indention << indention << indention << "this.object = object;\n";
@@ -894,6 +927,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 		//bound-specific:
 		boundFile << indention << indention << indention << "this.tableName = tableName;\n";
 		boundFile << indention << indention << indention << "this.objects = objects;\n";
+		boundFile << indention << indention << indention << "this.hash = hash;\n";
 
 		linkFile << indention << indention << "}\n";
 		countFile << indention << indention << "}\n";
@@ -914,7 +948,7 @@ bool AS3Target::Generate(const AST& ast, Messenger& messenger, const boost::prop
 	}
 
 
-	messenger << (boost::format("I: AS3 code successfully generated.\n"));
+	messenger << ( boost::format( "I: AS3 code successfully generated.\n" ) );
 
 	return true;
 }

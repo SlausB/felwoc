@@ -20,7 +20,7 @@ public:
 	\param ast Whole code compiled from XLS file. Must NOT be modified within this function.
 	\param config Loaded initialization file - can provide some settings.
 	\return false if something gone wrong.*/
-	virtual bool Generate(const AST& ast, Messenger& messenger, const boost::property_tree::ptree& config) = 0;
+	virtual bool Generate( const AST& ast, Messenger& messenger, const boost::property_tree::ptree& config ) = 0;
 };
 
 #endif//#ifndef TARGET_PLATFORM_H

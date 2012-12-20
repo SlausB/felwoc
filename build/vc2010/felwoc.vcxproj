@@ -124,6 +124,7 @@
     <ClCompile Include="..\..\output\outputs\file_output.cpp" />
     <ClCompile Include="..\..\output\outputs\string_output.cpp" />
     <ClCompile Include="..\..\parsing.cpp" />
+    <ClCompile Include="..\..\smhasher\MurmurHash3.cpp" />
     <ClCompile Include="..\..\targets\as3\as3_target.cpp" />
     <ClCompile Include="..\..\xml\pugixml.cpp" />
   </ItemGroup>
