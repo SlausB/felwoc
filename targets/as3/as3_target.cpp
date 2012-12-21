@@ -43,7 +43,7 @@ const char* postfix = "Info";
 //name of class which incapsulates table properties and array of it's objects:
 const char* boundName = "Bound";
 
-const std::string tabName = "__tabName";
+const std::string tabHash = "__tabHash";
 
 
 
@@ -475,7 +475,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << indention << indention << "return;\n";
 			file << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "\n";
-			file << indention << indention << indention << "this." << tabName << " = args[ 0 ];\n";
+			file << indention << indention << indention << "this." << tabHash << " = args[ 0 ];\n";
 			int argIndex = 1;
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
@@ -503,6 +503,26 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 	//incapsulation:
 	{
+		//hash values generation to address tables:
+		std::map< std::string, uint32_t > hashes;
+		for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
+		{
+			Table* table = ast.tables[ tableIndex ];
+				
+			uint32_t hash;
+			MurmurHash3_x86_32( table->lowercaseName.c_str(), table->lowercaseName.size(), 0, &hash );
+			//check that generated hash value doesn't collides with all already generated hash values:
+			for ( std::map< std::string, uint32_t >::iterator it = hashes.begin(); it != hashes.end(); ++it )
+			{
+				if ( hash == it->second )
+				{
+					messenger << ( boost::format( "E: AS3: hash value generated from table's name \"%s\" collides with one generated from \"%s\". It happens once per ~100000 cases, so you're very \"lucky\" to face it. Change one of these table names' to something else to avoid this problem.\n" ) % table->lowercaseName % it->first );
+					return false;
+				}
+			}
+			hashes[ table->lowercaseName ] = hash;
+		}
+
 		const char* incapsulationName = "Infos";
 
 		std::string fileName = str( boost::format( "%s/%s.as" ) % targetFolder % incapsulationName );
@@ -640,7 +660,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			{
 				file << indention << indention << indention << table->lowercaseName << ".push( new " << classNames[ table ] << "( ";
 
-				file << "\"" << table->realName << "\"";
+				file << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] );
 
 				for( std::vector< FieldData* >::const_iterator column = row->begin(); column != row->end(); ++column )
 				{
@@ -727,32 +747,17 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		file << indention << indention << indention << "\n";
 		//all manys:
 		{
-			std::map< uint32_t, std::string > usedHashes;
-
 			file << indention << indention << indention << "//all tables of type \"many\":\n";
 			for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 			{
 				Table* table = ast.tables[ tableIndex ];
-				
-				uint32_t hash;
-				MurmurHash3_x86_32( table->lowercaseName.c_str(), table->lowercaseName.size(), 0, &hash );
-				//check that generated hash value doesn't collides with all already generated hash values:
-				for ( std::map< uint32_t, std::string >::iterator it = usedHashes.begin(); it != usedHashes.end(); ++it )
-				{
-					if ( hash == it->first )
-					{
-						messenger << ( boost::format( "E: AS3: hash value generated from table's name \"%s\" collides with one generated from \"%s\". It happens once per ~100000 cases, so you're very \"lucky\" to face it. Change one of these table names' to something else to avoid this problem.\n" ) % table->lowercaseName % it->second );
-						return false;
-					}
-				}
-				usedHashes[ hash ] = table->lowercaseName;
 
 				if ( table->type != Table::MANY )
 				{
 					continue;
 				}
 
-				file << indention << indention << indention << allTablesName << ".push( new " << boundName << "( \"" << table->realName << "\", " << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hash ) << " ) );\n";
+				file << indention << indention << indention << allTablesName << ".push( new " << boundName << "( \"" << table->realName << "\", " << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " ) );\n";
 			}
 		}
 		file << indention << indention << "}\n";
@@ -805,7 +810,6 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << indention << "\n";
 			file << indention << indention << indention << "return from.links[ index ];\n";
 			file << indention << indention << "}\n";
-
 		}
 
 
@@ -923,12 +927,10 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		countFile << indention << indention << str(boost::format("/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/\n"));
 		countFile << indention << indention << str(boost::format("public var count:int;\n\n"));
 		//everyones-parent specific:
-		everyonesParentFile << indention << indention << str(boost::format("/** Any data which can be set by end-user.*/\n"));
-		everyonesParentFile << indention << indention << str(boost::format("public var __opaqueData:*;\n"));
-		everyonesParentFile << indention << indention << str(boost::format("/** Name of tab where this type was defined.*/\n"));
-		everyonesParentFile << indention << indention << str(boost::format("public var %s:String;\n") % tabName);
-		everyonesParentFile << indention << indention << str(boost::format("/** Tab's short name to store it on server.*/\n"));
-		everyonesParentFile << indention << indention << str(boost::format("public var __tabAlias:String;\n"));
+		everyonesParentFile << indention << indention << str( boost::format( "/** Any data which can be set by end-user.*/\n" ) );
+		everyonesParentFile << indention << indention << str( boost::format( "public var __opaqueData:*;\n" ) );
+		everyonesParentFile << indention << indention << str( boost::format( "/** Tab's name hash value to store it on server.*/\n" ) );
+		everyonesParentFile << indention << indention << str( boost::format( "public var %s:uint;\n" ) % tabHash );
 		//bound specific:
 		boundFile << indention << indention << str( boost::format( "/** Table's name without any modifications. Defined within constructor.*/\n" ) );
 		boundFile << indention << indention << str( boost::format( "public var tableName:String;\n" ) );
