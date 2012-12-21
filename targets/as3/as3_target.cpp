@@ -48,6 +48,9 @@ const std::string lowerBoundName = "bound";
 
 const std::string tabBound = "__tabBound";
 
+const std::string objectsField = "objects";
+const std::string hashField = "hash";
+
 
 
 
@@ -480,17 +483,17 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << indention << "\n";
 			file << indention << indention << indention << "this." << tabBound << " = args[ 0 ];\n";
 			int argIndex = 1;
-			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
+			for ( size_t fieldIndex = 0; fieldIndex < table->fields.size(); ++fieldIndex )
 			{
-				Field* field = table->fields[fieldIndex];
+				Field* field = table->fields[ fieldIndex ];
 
-				if(IsLink(field))
+				if ( IsLink( field ) )
 				{
 					continue;
 				}
 	
 				//file << indention << indention << indention << "this." << field->name << " = " << field->name << ";\n";
-				file << indention << indention << indention << "this." << field->name << " = args[" << argIndex << "];\n";
+				file << indention << indention << indention << "this." << field->name << " = args[ " << argIndex << " ];\n";
 				argIndex++;
 			}
 			file << indention << indention << "}\n";
@@ -812,6 +815,34 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << "}\n";
 		}
 
+		//function to find info by it's values which are stored on server and transmitted through network:
+		{
+			file << indention << indention << "\n";
+			file << indention << indention << "/** Use this function to restore Info when it is transmitted through network.\n";
+			file << indention << indention << "\\param hash Hash value from table's name when looking Info is described.\n";
+			file << indention << indention << "\\param id Identificator within it's table.
+			file << indention << indention << "\\return Found Info or null if nothing was found.*/\n";
+			file << indention << indention << "public function FindInfo( hash:uint, id:int ): Info\n";
+			file << indention << indention << "{\n";
+			file << indention << indention << indention << "for each ( " << lowerBoundName << ":" << boundName << " in " << allTablesName << " )\n";
+			file << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << "if ( hash == " << lowerBoundName << "." << hashField << " )\n";
+			file << indention << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << indention << "for each ( info:Object in " << objectsField << " )\n";
+			file << indention << indention << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << indention << indention << "if ( id == info.id )\n";
+			file << indention << indention << indention << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << indention << indention << indention << "return info;\n";
+			file << indention << indention << indention << indention << indention << indention << "}\n";
+			file << indention << indention << indention << indention << indention << "}\n";
+			file << indention << indention << indention << indention << indention << "\n";
+			file << indention << indention << indention << indention << indention << "return null;\n";
+			file << indention << indention << indention << indention << "}\n";
+			file << indention << indention << indention << "}\n";
+			file << indention << indention << indention << "return null;\n";
+			file << indention << indention << "}\n";
+		}
+
 
 		//body close:
 		file << indention << "}\n";
@@ -922,10 +953,12 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		linkFile << indention << indention << "/** All linked objects. Defined within constructor.*/\n";
 		linkFile << indention << indention << "public var links:Vector.<" << countName << "> = new Vector.<" << countName << ">;\n\n";
 		//count-specific:
-		countFile << indention << indention << str(boost::format("/** Linked object. Defined within constructor.*/\n"));
-		countFile << indention << indention << str(boost::format("public var object:%s;\n\n") % everyonesParentName);
-		countFile << indention << indention << str(boost::format("/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/\n"));
-		countFile << indention << indention << str(boost::format("public var count:int;\n\n"));
+		countFile << indention << indention << str( boost::format( "/** Linked object. Defined within constructor.*/\n" ) );
+		countFile << indention << indention << str( boost::format( "public var object:%s;\n" ) % everyonesParentName );
+		countFile << indention << indention << "\n";
+		countFile << indention << indention << str( boost::format( "/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/\n" ) );
+		countFile << indention << indention << str( boost::format( "public var count:int;\n" ) );
+		countFile << indention << indention << "\n";
 		//everyones-parent specific:
 		everyonesParentFile << indention << indention << str( boost::format( "/** Any data which can be set by end-user.*/\n" ) );
 		everyonesParentFile << indention << indention << str( boost::format( "public var __opaqueData:*;\n" ) );
@@ -935,9 +968,9 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		boundFile << indention << indention << str( boost::format( "/** Table's name without any modifications. Defined within constructor.*/\n" ) );
 		boundFile << indention << indention << str( boost::format( "public var tableName:String;\n" ) );
 		boundFile << indention << indention << str( boost::format( "/** Data objects of this table. Vector of objects inherited at least from \"%s\". Defined within constructor.*/\n" ) % everyonesParentName );
-		boundFile << indention << indention << str( boost::format( "public var objects:Object;\n" ) );
+		boundFile << indention << indention << str( boost::format( "public var %s:Object;\n" ) % objectsField );
 		boundFile << indention << indention << str( boost::format( "/** Hash value from table's lowercase name to differentiate objects of this table from any other objects.*/\n" ) );
-		boundFile << indention << indention << str( boost::format( "public var hash:uint;\n" ) );
+		boundFile << indention << indention << str( boost::format( "public var %s:uint;\n" ) % hashField );
 		boundFile << indention << indention << "\n";
 
 
@@ -967,8 +1000,8 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		countFile << indention << indention << indention << "this.count = count;\n";
 		//bound-specific:
 		boundFile << indention << indention << indention << "this.tableName = tableName;\n";
-		boundFile << indention << indention << indention << "this.objects = objects;\n";
-		boundFile << indention << indention << indention << "this.hash = hash;\n";
+		boundFile << indention << indention << indention << "this." << objectsField << " = objects;\n";
+		boundFile << indention << indention << indention << "this." << hashField << " = hash;\n";
 
 		linkFile << indention << indention << "}\n";
 		countFile << indention << indention << "}\n";
