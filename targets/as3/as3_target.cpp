@@ -12,6 +12,8 @@
 
 #include "../../smhasher/MurmurHash3.h"
 
+#include <algorithm>
+
 
 std::string targetFolder;
 
@@ -41,9 +43,10 @@ const char* packageName = "infos";
 const char* postfix = "Info";
 
 //name of class which incapsulates table properties and array of it's objects:
-const char* boundName = "Bound";
+const std::string boundName = "Bound";
+const std::string lowerBoundName = "bound";
 
-const std::string tabHash = "__tabHash";
+const std::string tabBound = "__tabBound";
 
 
 
@@ -475,7 +478,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << indention << indention << "return;\n";
 			file << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "\n";
-			file << indention << indention << indention << "this." << tabHash << " = args[ 0 ];\n";
+			file << indention << indention << indention << "this." << tabBound << " = args[ 0 ];\n";
 			int argIndex = 1;
 			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
 			{
@@ -640,6 +643,12 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		file << indention << indention << "public function " << incapsulationName << "()\n";
 		//definition:
 		file << indention << indention << "{\n";
+
+		//bounds declaration:
+		file << indention << indention << indention << "//will be created and temporarely used during each table objects creation: for each table will be created it's own:\n";
+		file << indention << indention << indention << "var __" << lowerBoundName << ":" << boundName << ";\n";
+		file << indention << indention << indention << "\n";
+
 		bool somethingOut = false;
 		for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 		{
@@ -658,9 +667,16 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			//data itself:
 			for ( std::vector<std::vector< FieldData* > >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); ++row )
 			{
+				//create and add bound here if it wasn't yet for currently initing table:
+				if ( somethingOut == false && table->type == Table::MANY )
+				{
+					file << indention << indention << indention << lowerBoundName << " = new " << boundName << "( \"" << table->realName << "\", " << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " );\n";
+					file << indention << indention << indention << allTablesName << ".push( " << lowerBoundName << " );\n";
+				}
+
 				file << indention << indention << indention << table->lowercaseName << ".push( new " << classNames[ table ] << "( ";
 
-				file << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] );
+				file << lowerBoundName;
 
 				for( std::vector< FieldData* >::const_iterator column = row->begin(); column != row->end(); ++column )
 				{
@@ -742,22 +758,6 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 				{
 					file << indention << indention << indention << "\n";
 				}
-			}
-		}
-		file << indention << indention << indention << "\n";
-		//all manys:
-		{
-			file << indention << indention << indention << "//all tables of type \"many\":\n";
-			for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
-			{
-				Table* table = ast.tables[ tableIndex ];
-
-				if ( table->type != Table::MANY )
-				{
-					continue;
-				}
-
-				file << indention << indention << indention << allTablesName << ".push( new " << boundName << "( \"" << table->realName << "\", " << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " ) );\n";
 			}
 		}
 		file << indention << indention << "}\n";
@@ -929,8 +929,8 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		//everyones-parent specific:
 		everyonesParentFile << indention << indention << str( boost::format( "/** Any data which can be set by end-user.*/\n" ) );
 		everyonesParentFile << indention << indention << str( boost::format( "public var __opaqueData:*;\n" ) );
-		everyonesParentFile << indention << indention << str( boost::format( "/** Tab's name hash value to store it on server.*/\n" ) );
-		everyonesParentFile << indention << indention << str( boost::format( "public var %s:uint;\n" ) % tabHash );
+		everyonesParentFile << indention << indention << str( boost::format( "/** Pointer to table's incapsulation object.*/\n" ) );
+		everyonesParentFile << indention << indention << str( boost::format( "public var %s:%s;\n" ) % tabBound % boundName );
 		//bound specific:
 		boundFile << indention << indention << str( boost::format( "/** Table's name without any modifications. Defined within constructor.*/\n" ) );
 		boundFile << indention << indention << str( boost::format( "public var tableName:String;\n" ) );
