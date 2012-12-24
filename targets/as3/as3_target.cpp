@@ -45,6 +45,7 @@ const char* postfix = "Info";
 //name of class which incapsulates table properties and array of it's objects:
 const std::string boundName = "Bound";
 const std::string lowerBoundName = "bound";
+const std::string boundVariableName = "__bound";
 
 const std::string tabBound = "__tabBound";
 
@@ -649,7 +650,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 		//bounds declaration:
 		file << indention << indention << indention << "//will be created and temporarely used during each table objects creation: for each table will be created it's own:\n";
-		file << indention << indention << indention << "var __" << lowerBoundName << ":" << boundName << ";\n";
+		file << indention << indention << indention << "var " << boundVariableName << ":" << boundName << ";\n";
 		file << indention << indention << indention << "\n";
 
 		bool somethingOut = false;
@@ -673,13 +674,13 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 				//create and add bound here if it wasn't yet for currently initing table:
 				if ( somethingOut == false && table->type == Table::MANY )
 				{
-					file << indention << indention << indention << lowerBoundName << " = new " << boundName << "( \"" << table->realName << "\", " << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " );\n";
-					file << indention << indention << indention << allTablesName << ".push( " << lowerBoundName << " );\n";
+					file << indention << indention << indention << boundVariableName << " = new " << boundName << "( \"" << table->realName << "\", " << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " );\n";
+					file << indention << indention << indention << allTablesName << ".push( " << boundVariableName << " );\n";
 				}
 
 				file << indention << indention << indention << table->lowercaseName << ".push( new " << classNames[ table ] << "( ";
 
-				file << lowerBoundName;
+				file << boundVariableName;
 
 				for( std::vector< FieldData* >::const_iterator column = row->begin(); column != row->end(); ++column )
 				{
@@ -820,19 +821,19 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << "\n";
 			file << indention << indention << "/** Use this function to restore Info when it is transmitted through network.\n";
 			file << indention << indention << "\\param hash Hash value from table's name when looking Info is described.\n";
-			file << indention << indention << "\\param id Identificator within it's table.
+			file << indention << indention << "\\param id Identificator within it's table.\n";
 			file << indention << indention << "\\return Found Info or null if nothing was found.*/\n";
 			file << indention << indention << "public function FindInfo( hash:uint, id:int ): Info\n";
 			file << indention << indention << "{\n";
-			file << indention << indention << indention << "for each ( " << lowerBoundName << ":" << boundName << " in " << allTablesName << " )\n";
+			file << indention << indention << indention << "for each ( var " << lowerBoundName << ":" << boundName << " in " << allTablesName << " )\n";
 			file << indention << indention << indention << "{\n";
 			file << indention << indention << indention << indention << "if ( hash == " << lowerBoundName << "." << hashField << " )\n";
 			file << indention << indention << indention << indention << "{\n";
-			file << indention << indention << indention << indention << indention << "for each ( info:Object in " << objectsField << " )\n";
+			file << indention << indention << indention << indention << indention << "for each ( var info:Object in " << lowerBoundName << "." << objectsField << " )\n";
 			file << indention << indention << indention << indention << indention << "{\n";
 			file << indention << indention << indention << indention << indention << indention << "if ( id == info.id )\n";
 			file << indention << indention << indention << indention << indention << indention << "{\n";
-			file << indention << indention << indention << indention << indention << indention << indention << "return info;\n";
+			file << indention << indention << indention << indention << indention << indention << indention << "return info as " << everyonesParentName << ";\n";
 			file << indention << indention << indention << indention << indention << indention << "}\n";
 			file << indention << indention << indention << indention << indention << "}\n";
 			file << indention << indention << indention << indention << indention << "\n";
