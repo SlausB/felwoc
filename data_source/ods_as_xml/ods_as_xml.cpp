@@ -376,56 +376,53 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 		}
 
 		//don't know why but XML has cell fields with attributes such as "<table:table-cell table:number-columns-repeated="1011"/>" so get rid of fully undefined columns:
-		if(addingSpreadsheet->cells.size() > 0)
+		//while there are some columns:
+		while ( addingSpreadsheet->cells.empty() == false )
 		{
-			//while there are some columns:
-			for(;;)
+			if ( addingSpreadsheet->cells.front().size() > 0 )
 			{
-				if(addingSpreadsheet->cells.front().size() > 0)
+				bool allUndefined = true;
+				for ( int rowIndex = 0; rowIndex < addingSpreadsheet->cells.size(); ++rowIndex )
 				{
-					bool allUndefined = true;
-					for(int rowIndex = 0; rowIndex < addingSpreadsheet->cells.size(); rowIndex++)
+					if ( addingSpreadsheet->cells[ rowIndex ].back()->GetType() != Cell::UNDEFINED )
 					{
-						if(addingSpreadsheet->cells[rowIndex].back()->GetType() != Cell::UNDEFINED)
-						{
-							allUndefined = false;
-							break;
-						}
-					}
-
-					if(allUndefined)
-					{
-						for(int i = 0; i < addingSpreadsheet->cells.size(); i++)
-						{
-							addingSpreadsheet->cells[i].pop_back();
-						}
-					}
-					else
-					{
+						allUndefined = false;
 						break;
 					}
 				}
-				//all cells within all rows are undefines so think that there are no cells at all:
+
+				if ( allUndefined )
+				{
+					for ( int i = 0; i < addingSpreadsheet->cells.size(); ++i )
+					{
+						addingSpreadsheet->cells[ i ].pop_back();
+					}
+				}
 				else
 				{
-					addingSpreadsheet->cells.clear();
+					break;
 				}
+			}
+			//all cells within all rows are undefines so think that there are no cells at all:
+			else
+			{
+				addingSpreadsheet->cells.clear();
 			}
 		}
 		//the same for rows:
-		while(addingSpreadsheet->cells.empty() == false)
+		while ( addingSpreadsheet->cells.empty() == false )
 		{
 			bool empty = true;
-			for(int columnIndex = 0; columnIndex < addingSpreadsheet->cells.back().size(); columnIndex++)
+			for ( int columnIndex = 0; columnIndex < addingSpreadsheet->cells.back().size(); ++columnIndex )
 			{
-				if(addingSpreadsheet->cells.back()[columnIndex]->GetType() != Cell::UNDEFINED)
+				if ( addingSpreadsheet->cells.back()[ columnIndex ]->GetType() != Cell::UNDEFINED )
 				{
 					empty = false;
 					break;
 				}
 			}
 
-			if(empty)
+			if ( empty )
 			{
 				addingSpreadsheet->cells.pop_back();
 			}
@@ -435,7 +432,7 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 			}
 		}
 
-		spreadsheets.push_back(boost::dynamic_pointer_cast<Spreadsheet, OdsSpreadsheet>(addingSpreadsheet));
+		spreadsheets.push_back( boost::dynamic_pointer_cast< Spreadsheet, OdsSpreadsheet >( addingSpreadsheet ) );
 	}
 }
 
