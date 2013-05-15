@@ -298,23 +298,38 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 					{
 						addingCell->type = Cell::STRING;
 
+						bool print = false;
 						//multiple children are different lines of text which must be split with line endings:
 						for ( pugi::xml_node_iterator xmlTextIt = xmlCellIt->begin(); xmlTextIt != xmlCellIt->end(); ++xmlTextIt )
 						{
-							if ( addingCell->asString.empty() == false )
+							if ( print )
 							{
 								addingCell->asString.push_back( '\n' );
 							}
+							print = true;
 
 							if ( strcmp( xmlTextIt->name(), "text:p" ) != 0 )
 							{
 								messenger->write( boost::format( "W: PROGRAM WARNING: unrecognized literal property. Refer to software supplier, please.\n" ) );
 								continue;
 							}
-							
-							pugi::xml_node xmlText = xmlTextIt->first_child();
-							CHECK_NULL( xmlText );
-							addingCell->asString = xmlText.value();
+
+							for ( pugi::xml_node_iterator xmlLineIt = xmlTextIt->begin(); xmlLineIt != xmlTextIt->end(); ++xmlLineIt )
+							{
+								if ( strcmp( xmlLineIt->name(), "" ) == 0 )
+								{
+									addingCell->asString.append( xmlLineIt->value() );
+								}
+								//such nodes have some "text:c" attibute (I saw only text:c="3" which was spaces) which I don't understand yet:
+								else if ( strcmp( xmlLineIt->name(), "text:s" ) )
+								{
+									addingCell->asString.push_back( ' ' );
+								}
+								else
+								{
+									messenger->write( boost::format( "W: PROGRAM WARNING: unrecognised literal field. Refer to software supplier, please.\n" ) );
+								}
+							}
 						}
 					}
 				}
@@ -332,7 +347,7 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 					}
 					catch(...)
 					{
-						messenger->write(boost::format("E: PROGRAM ERROR: columns repeating count value was not casted to int. Refer to software supplier.\n"));
+						messenger->write( boost::format( "E: PROGRAM ERROR: columns repeating count value was not casted to int. Refer to software supplier.\n" ) );
 						isOk = false;
 						return;
 					}
