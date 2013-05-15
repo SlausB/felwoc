@@ -74,7 +74,7 @@ bool IsLink(Field* field)
 }
 
 /** Returns empty string on some error.*/
-std::string PrintType(Messenger& messenger, const Field* field)
+std::string PrintType( Messenger& messenger, const Field* field )
 {
 	switch(field->type)
 	{
@@ -144,26 +144,26 @@ std::string PrintType(Messenger& messenger, const Field* field)
 	return std::string();
 }
 
-std::string PrintData(Messenger& messenger, const FieldData* fieldData)
+std::string PrintData( Messenger& messenger, const FieldData* fieldData )
 {
-	switch(fieldData->field->type)
+	switch ( fieldData->field->type )
 	{
 	case Field::INHERITED:
 		{
-			Inherited* inherited = (Inherited*)fieldData;
-			return PrintData(messenger, inherited->fieldData);
+			Inherited* inherited = ( Inherited* ) fieldData;
+			return PrintData( messenger, inherited->fieldData );
 		}
 		break;
 
 	case Field::SERVICE:
 		{
-			Service* service = (Service*)fieldData;
-			ServiceField* serviceField = (ServiceField*)fieldData->field;
-			switch(serviceField->serviceType)
+			Service* service = ( Service* ) fieldData;
+			ServiceField* serviceField = ( ServiceField* ) fieldData->field;
+			switch ( serviceField->serviceType )
 			{
 			case ServiceField::ID:
 				{
-					Int* asInt = (Int*)service->fieldData;
+					Int* asInt = ( Int* ) service->fieldData;
 					return boost::lexical_cast<std::string>(asInt->value);
 				}
 
@@ -175,20 +175,26 @@ std::string PrintData(Messenger& messenger, const FieldData* fieldData)
 
 	case Field::TEXT:
 		{
-			Text* text = (Text*)fieldData;
+			Text* text = ( Text* ) fieldData;
 
 			std::string result = "\"";
 			//escape:
-			for(size_t i = 0; i < text->text.size(); i++)
+			for ( size_t i = 0; i < text->text.size(); ++i )
 			{
-				if(text->text[i] == '"')
+				switch ( text->text[ i ] )
 				{
-					result.push_back('\\');
+				case '"':
+					result.push_back( '\\' );
+					break;
+
+				case '\n':
+					result.append( "\\n" );
+					continue;
 				}
 
-				result.push_back(text->text[i]);
+				result.push_back( text->text[ i ] );
 			}
-			result.push_back('"');
+			result.push_back( '"' );
 			return result;
 		}
 		break;
@@ -417,7 +423,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			{
 				file << "var ";
 			}
-			file << field->name << ":";
+			file << field->name << " : ";
 			if ( IsLink( field ) )
 			{
 				file << linkName;
