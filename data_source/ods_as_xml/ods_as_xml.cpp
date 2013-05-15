@@ -280,11 +280,11 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 					{
 						addingCell->type = Cell::FLOAT;
 
-						pugi::xml_attribute xmlFloatValue = xmlCellIt->attribute(valueName);
-						CHECK_NULL(xmlFloatValue);
+						pugi::xml_attribute xmlFloatValue = xmlCellIt->attribute( valueName );
+						CHECK_NULL( xmlFloatValue );
 						try
 						{
-							addingCell->asFloat = boost::lexical_cast<double, const char*>(xmlFloatValue.value());
+							addingCell->asFloat = boost::lexical_cast< double, const char* >( xmlFloatValue.value() );
 						}
 						catch(...)
 						{
@@ -320,14 +320,33 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 								{
 									addingCell->asString.append( xmlLineIt->value() );
 								}
-								//such nodes have some "text:c" attibute (I saw only text:c="3" which was spaces) which I don't understand yet:
-								else if ( strcmp( xmlLineIt->name(), "text:s" ) )
+								else if ( strcmp( xmlLineIt->name(), "text:s" ) == 0 )
 								{
-									addingCell->asString.push_back( ' ' );
+									int spaces = 1;
+									pugi::xml_attribute spacesAttribute = xmlLineIt->attribute( "text:c" );
+									if ( spacesAttribute.empty() == false )
+									{
+										try
+										{
+											spaces = boost::lexical_cast< int, const char* >( spacesAttribute.value() );
+										}
+										catch( ... )
+										{
+											messenger->write( boost::format( "W: PROGRAM WARNING: spaces count was NOT casted to integer value. Refer to software supplier, please.\n" ) );
+										}
+									}
+									for ( int space = 0; space < spaces; ++space )
+									{
+										addingCell->asString.push_back( ' ' );
+									}
+								}
+								else if ( strcmp( xmlLineIt->name(), "text:span" ) == 0 )
+								{
+									addingCell->asString.append( xmlLineIt->first_child().value() );
 								}
 								else
 								{
-									messenger->write( boost::format( "W: PROGRAM WARNING: unrecognised literal field. Refer to software supplier, please.\n" ) );
+									messenger->write( boost::format( "W: PROGRAM WARNING: unrecognised literal field named \"%s\". Refer to software supplier, please.\n" ) % xmlLineIt->name() );
 								}
 							}
 						}
