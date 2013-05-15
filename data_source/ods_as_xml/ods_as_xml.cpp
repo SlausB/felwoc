@@ -23,14 +23,23 @@ public:
 
 	double GetFloat()
 	{
-		if(type == Cell::FLOAT) return asFloat;
+		if ( type == Cell::FLOAT )
+		{
+			return asFloat;
+		}
 		return 0;
 	}
 	
 	std::string GetString()
 	{
-		if(type == Cell::STRING) return asString;
-		if(type == Cell::FLOAT) return boost::lexical_cast<std::string>(asFloat);
+		if ( type == Cell::STRING )
+		{
+			return asString;
+		}
+		if ( type == Cell::FLOAT )
+		{
+			return boost::lexical_cast< std::string >( asFloat );
+		}
 		//undefined:
 		return "";
 	}
@@ -226,38 +235,36 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 		pugi::xml_attribute xmlTableName = xmlTableIt->attribute("table:name");
 		CHECK_NULL(xmlTableName);
 		addingSpreadsheet->name = xmlTableName.value();
-		if(addingSpreadsheet->name.compare("Constants") == 0)
-		{
-			//break here...
-			printf("");
-		}
 
 		//for each row:
 		int rowIndex = 0;
-		for(pugi::xml_node_iterator xmlRowIt = xmlTableIt->begin(); xmlRowIt != xmlTableIt->end(); xmlRowIt++, rowIndex++)
+		for ( pugi::xml_node_iterator xmlRowIt = xmlTableIt->begin(); xmlRowIt != xmlTableIt->end(); ++xmlRowIt, ++rowIndex )
 		{
-			if(strcmp(xmlRowIt->name(), "table:table-row") != 0)
+			if ( strcmp( xmlRowIt->name(), "table:table-row" ) != 0 )
 			{
-				rowIndex--;
+				--rowIndex;
 				continue;
 			}
 
-			addingSpreadsheet->cells.push_back(std::vector<boost::shared_ptr<Cell> >());
-			std::vector<boost::shared_ptr<Cell> >& row = addingSpreadsheet->cells.back();
+			addingSpreadsheet->cells.push_back( std::vector< boost::shared_ptr< Cell > >() );
+			std::vector< boost::shared_ptr< Cell > >& row = addingSpreadsheet->cells.back();
 
 			int currentColumnIndex = 0;
-			if(SpanColumn(currentColumnIndex, row, rowIndex, addingSpreadsheet, messenger) == false)
+			if ( SpanColumn( currentColumnIndex, row, rowIndex, addingSpreadsheet, messenger ) == false )
 			{
 				isOk = false;
 				return;
 			}
 
 			//for each cell:
-			for(pugi::xml_node_iterator xmlCellIt = xmlRowIt->begin(); xmlCellIt != xmlRowIt->end(); xmlCellIt++)
+			for ( pugi::xml_node_iterator xmlCellIt = xmlRowIt->begin(); xmlCellIt != xmlRowIt->end(); ++xmlCellIt )
 			{
-				if(strcmp(xmlCellIt->name(), "table:table-cell") != 0) continue;
+				if ( strcmp( xmlCellIt->name(), "table:table-cell" ) != 0 )
+				{
+					continue;
+				}
 
-				boost::shared_ptr<OdsCell> addingCell = boost::make_shared<OdsCell>();
+				boost::shared_ptr< OdsCell > addingCell = boost::make_shared< OdsCell >();
 				addingCell->type = Cell::UNDEFINED;
 				addingCell->occuredRow = rowIndex;
 				addingCell->occuredColumn = currentColumnIndex;
@@ -265,11 +272,11 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 				addingCell->spannedColumns = 1;
 				addingCell->repeatedColumns = 1;
 
-				pugi::xml_attribute xmlCellType = xmlCellIt->attribute("office:value-type");
+				pugi::xml_attribute xmlCellType = xmlCellIt->attribute( "office:value-type" );
 				const char* valueName = "office:value";
-				if(xmlCellType.empty() == false)
+				if ( xmlCellType.empty() == false )
 				{
-					if(strcmp(xmlCellType.value(), "float") == 0)
+					if ( strcmp( xmlCellType.value(), "float" ) == 0 )
 					{
 						addingCell->type = Cell::FLOAT;
 
@@ -281,7 +288,7 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 						}
 						catch(...)
 						{
-							messenger->write(boost::format("E: PROGRAM ERROR: failed cast to float. Refer to software supplier.\n"));
+							messenger->write( boost::format( "E: PROGRAM ERROR: failed cast to float. Refer to software supplier.\n" ) );
 							isOk = false;
 							return;
 						}
@@ -291,22 +298,37 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 					{
 						addingCell->type = Cell::STRING;
 
-						pugi::xml_node xmlText = xmlCellIt->child("text:p").first_child();
-						CHECK_NULL(xmlText);
-						addingCell->asString = xmlText.value();
+						//multiple children are different lines of text which must be split with line endings:
+						for ( pugi::xml_node_iterator xmlTextIt = xmlCellIt->begin(); xmlTextIt != xmlCellIt->end(); ++xmlTextIt )
+						{
+							if ( addingCell->asString.empty() == false )
+							{
+								addingCell->asString.push_back( '\n' );
+							}
+
+							if ( strcmp( xmlTextIt->name(), "text:p" ) != 0 )
+							{
+								messenger->write( boost::format( "W: PROGRAM WARNING: unrecognized literal property. Refer to software supplier, please.\n" ) );
+								continue;
+							}
+							
+							pugi::xml_node xmlText = xmlTextIt->first_child();
+							CHECK_NULL( xmlText );
+							addingCell->asString = xmlText.value();
+						}
 					}
 				}
 
-				row.push_back(boost::dynamic_pointer_cast<Cell, OdsCell>(addingCell));
-				currentColumnIndex++;
+				row.push_back( boost::dynamic_pointer_cast< Cell, OdsCell >( addingCell ) );
+				++currentColumnIndex;
 
 				//repeate for all similar (undefined) columns:
-				pugi::xml_attribute xmlColumnsRepeating = xmlCellIt->attribute("table:number-columns-repeated");
-				if(xmlColumnsRepeating.empty() == false)
+				pugi::xml_attribute xmlColumnsRepeating = xmlCellIt->attribute( "table:number-columns-repeated" );
+				if ( xmlColumnsRepeating.empty() == false )
 				{
 					try
 					{
-						addingCell->repeatedColumns = boost::lexical_cast<int, const char*>(xmlColumnsRepeating.value());
+						addingCell->repeatedColumns = boost::lexical_cast< int, const char* >( xmlColumnsRepeating.value() );
 					}
 					catch(...)
 					{
@@ -317,43 +339,43 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 				}
 
 				//fix stretching over multiple rows and columns:
-				pugi::xml_attribute xmlRowsSpanned = xmlCellIt->attribute("table:number-rows-spanned");
-				if(xmlRowsSpanned.empty() == false)
+				pugi::xml_attribute xmlRowsSpanned = xmlCellIt->attribute( "table:number-rows-spanned" );
+				if ( xmlRowsSpanned.empty() == false )
 				{
 					try
 					{
-						addingCell->spannedRows = boost::lexical_cast<int, const char*>(xmlRowsSpanned.value());
+						addingCell->spannedRows = boost::lexical_cast< int, const char* >( xmlRowsSpanned.value() );
 					}
-					catch(...)
+					catch( ... )
 					{
-						messenger->write(boost::format("E: PROGRAM ERROR: rows repeating count value was not casted to int. Refer to software supplier.\n"));
+						messenger->write( boost::format( "E: PROGRAM ERROR: rows repeating count value was not casted to int. Refer to software supplier.\n" ) );
 						isOk = false;
 						return;
 					}
 				}
-				pugi::xml_attribute xmlColumnsSpanned = xmlCellIt->attribute("table:number-columns-spanned");
-				if(xmlColumnsSpanned.empty() == false)
+				pugi::xml_attribute xmlColumnsSpanned = xmlCellIt->attribute( "table:number-columns-spanned" );
+				if ( xmlColumnsSpanned.empty() == false )
 				{
 					try
 					{
-						addingCell->spannedColumns = boost::lexical_cast<int, const char*>(xmlColumnsSpanned.value());
+						addingCell->spannedColumns = boost::lexical_cast< int, const char* >( xmlColumnsSpanned.value() );
 					}
-					catch(...)
+					catch( ... )
 					{
-						messenger->write(boost::format("E: PROGRAM ERROR: columns repeating count value was not casted to int. Refer to software supplier.\n"));
+						messenger->write( boost::format( "E: PROGRAM ERROR: columns repeating count value was not casted to int. Refer to software supplier.\n" ) );
 						isOk = false;
 						return;
 					}
 				}
 
 				//-2 because cell was already added once previously and both values have 1 at initialization:
-				for(int i = 0; i < (addingCell->spannedColumns + addingCell->repeatedColumns - 2); i++)
+				for ( int i = 0; i < ( addingCell->spannedColumns + addingCell->repeatedColumns - 2 ); ++i )
 				{
-					row.push_back(boost::dynamic_pointer_cast<Cell, OdsCell>(addingCell));
-					currentColumnIndex++;
+					row.push_back( boost::dynamic_pointer_cast< Cell, OdsCell >( addingCell ) );
+					++currentColumnIndex;
 				}
 
-				if(SpanColumn(currentColumnIndex, row, rowIndex, addingSpreadsheet, messenger) == false)
+				if ( SpanColumn( currentColumnIndex, row, rowIndex, addingSpreadsheet, messenger ) == false )
 				{
 					isOk = false;
 					return;
@@ -362,9 +384,9 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 		}
 
 		//check proper ODS file format understanding - each row must have similar amount of columns:
-		for(int rowIndex = 0; rowIndex < addingSpreadsheet->cells.size(); rowIndex++)
+		for ( int rowIndex = 0; rowIndex < addingSpreadsheet->cells.size(); ++rowIndex )
 		{
-			for(int rightRowIndex = 0; rightRowIndex < addingSpreadsheet->cells.size(); rightRowIndex++)
+			for ( int rightRowIndex = 0; rightRowIndex < addingSpreadsheet->cells.size(); ++rightRowIndex )
 			{
 				if(addingSpreadsheet->cells[rowIndex].size() != addingSpreadsheet->cells[rightRowIndex].size())
 				{
