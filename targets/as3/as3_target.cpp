@@ -94,7 +94,7 @@ std::string PrintType( Messenger& messenger, const Field* field )
 				return "int";
 
 			default:
-				messenger.error(boost::format("E: AS3: PROGRAM ERROR: PrintType(): service type = %d is undefined. Returning empty string. Refer to software supplier.\n") % serviceField->serviceType);
+				messenger.error( boost::format( "E: AS3: PROGRAM ERROR: PrintType(): service type = %d is undefined. Returning empty string. Refer to software supplier.\n" ) % serviceField->serviceType );
 				return std::string();
 			}
 		}
@@ -138,7 +138,7 @@ std::string PrintType( Messenger& messenger, const Field* field )
 
 	
 	default:
-		messenger.error(boost::format("E: AS3: PROGRAM ERROR: PrintType(): type = %d is undefined. Returning empty string. Refer to software supplier.\n") % field->type);
+		messenger.error( boost::format( "E: AS3: PROGRAM ERROR: PrintType(): type = %d is undefined. Returning empty string. Refer to software supplier.\n") % field->type );
 	}
 
 	return std::string();
@@ -168,7 +168,7 @@ std::string PrintData( Messenger& messenger, const FieldData* fieldData )
 				}
 
 			default:
-				messenger.error(boost::format("E: AS3: PROGRAM ERROR: PrintData(): service type %d is undefined. Refer to software supplier.\n") % serviceField->serviceType);
+				messenger.error( boost::format( "E: AS3: PROGRAM ERROR: PrintData(): service type %d is undefined. Refer to software supplier.\n" ) % serviceField->serviceType );
 			}
 		}
 		break;
@@ -201,8 +201,8 @@ std::string PrintData( Messenger& messenger, const FieldData* fieldData )
 
 	case Field::FLOAT:
 		{
-			Float* asFloat = (Float*)fieldData;
-			return boost::lexical_cast<std::string>(asFloat->value);
+			Float* asFloat = ( Float* ) fieldData;
+			return boost::lexical_cast< std::string >( asFloat->value );
 		}
 		break;
 
@@ -338,11 +338,11 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 	std::map< Table*, std::string > classNames;
 	for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 	{
-		Table* table = ast.tables[tableIndex];
+		Table* table = ast.tables[ tableIndex ];
 		std::string className = table->lowercaseName;
-		std::transform(className.begin(), ++(className.begin()), className.begin(), ::toupper);
-		className.append(postfix);
-		classNames[table] = className;
+		std::transform( className.begin(), ++( className.begin() ), className.begin(), ::toupper );
+		className.append( postfix );
+		classNames[ table ] = className;
 	}
 
 	//generate classes:
@@ -415,7 +415,8 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 				return false;
 			}
 			file << indention << indention << "public ";
-			if ( table->type == Table::PRECISE )
+			//links within tables of type "precise" will be defined in the same way as all other links:
+			if ( table->type == Table::PRECISE && field->type != Field::LINK )
 			{
 				file << "static const ";
 			}
@@ -454,28 +455,28 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << "/** All (including inherited) fields (excluding links) are defined here. To let define classes only within it's classes without inherited constructors used udnefined arguments.*/\n";
 			file << indention << indention << "public function " << classNames[table] << "(";
 			/*bool once = false;
-			for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
+			for ( size_t fieldIndex = 0; fieldIndex < table->fields.size(); ++fieldIndex )
 			{
-				Field* field = table->fields[fieldIndex];
+				Field* field = table->fields[ fieldIndex ];
 
 				//links are defined after all initializations:
-				if(IsLink(field))
+				if ( IsLink( field ) )
 				{
 					continue;
 				}
 
-				if(once)
+				if ( once )
 				{
 					file << ", ";
 				}
 				once = true;
 
-				const std::string fieldsTypeName = PrintType(messenger, field);
-				if(fieldsTypeName.empty())
+				const std::string fieldsTypeName = PrintType( messenger, field );
+				if ( fieldsTypeName.empty() )
 				{
 					return false;
 				}
-				file << field->name << ":" << fieldsTypeName;
+				file << field->name << " : " << fieldsTypeName;
 			}*/
 			file << " ... args ";
 			file << ")\n";
@@ -524,7 +525,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 				
 			uint32_t hash;
 			MurmurHash3_x86_32( table->lowercaseName.c_str(), table->lowercaseName.size(), 0, &hash );
-			//check that generated hash value doesn't collides with all already generated hash values:
+			//check that generated hash value doesn't collide with all already generated hash values:
 			for ( std::map< std::string, uint32_t >::iterator it = hashes.begin(); it != hashes.end(); ++it )
 			{
 				if ( hash == it->second )
@@ -574,12 +575,12 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 				//infos:
 				bool once = false;
-				for(std::map<Table*, std::string>::const_iterator it = classNames.begin(); it != classNames.end(); it++)
+				for ( std::map< Table*, std::string >::const_iterator it = classNames.begin(); it != classNames.end(); ++it )
 				{
 					file << indention << "import " << overallNamespace << "." << packageName << "." << it->second << ";\n";
 					once = true;
 				}
-				if(once)
+				if ( once )
 				{
 					file << indention << "\n";
 				}
@@ -623,7 +624,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			//for now there are no differences with MANY:
 			case Table::MORPH:
 				{
-					file << ":Vector.< " << classNames[ table ] << " > = new Vector.< " << classNames[ table ] << " >;\n";
+					file << " : Vector.< " << classNames[ table ] << " > = new Vector.< " << classNames[ table ] << " >;\n";
 				}
 				break;
 
@@ -631,7 +632,8 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			//for now there are no differences with PRECISE:
 			case Table::SINGLE:
 				{
-					file << str( boost::format( ":%s;\n" ) % classNames[ table ] );
+					//such tables must be created to be able to define links later:
+					file << " : " << classNames[ table ] << " = new " << classNames[ table ] << ";\n";
 				}
 				break;
 
@@ -644,7 +646,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		}
 		//all:
 		file << indention << indention << "/** Array of all arrays. Each element is of type Vector.< " << everyonesParentName << " > */\n";
-		file << indention << indention << "public var " << allTablesName << ":Vector.< " << boundName << " > = new Vector.< " << boundName << " >;\n";
+		file << indention << indention << "public var " << allTablesName << " : Vector.< " << boundName << " > = new Vector.< " << boundName << " >;\n";
 		file << indention << indention << "\n";
 
 		//constructor:
@@ -656,7 +658,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 		//bounds declaration:
 		file << indention << indention << indention << "//will be created and temporarely used during each table objects creation: for each table will be created it's own:\n";
-		file << indention << indention << indention << "var " << boundVariableName << ":" << boundName << ";\n";
+		file << indention << indention << indention << "var " << boundVariableName << " : " << boundName << ";\n";
 		file << indention << indention << indention << "\n";
 
 		bool somethingOut = false;
@@ -710,22 +712,66 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		{
 			file << indention << indention << indention << "//connect links:\n";
 
-			for(size_t tableIndex = 0; tableIndex < ast.tables.size(); tableIndex++)
+			for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 			{
-				Table* table = ast.tables[tableIndex];
+				Table* table = ast.tables[ tableIndex ];
 
-				if(table->type != Table::MANY && table->type != Table::MORPH)
+				bool atLeastOne = false;
+
+				//special for tables of type "precise":
+				if ( table->type == Table::PRECISE )
+				{
+					for ( size_t fieldIndex = 0; fieldIndex < table->fields.size(); ++fieldIndex )
+					{
+						Field* field = table->fields[ fieldIndex ];
+
+						if ( IsLink( field ) == false )
+						{
+							continue;
+						}
+
+						if ( field->type != Field::LINK )
+						{
+							messenger.error( boost::format( "E: AS3: PROGRAM ERROR: linking precise: field's type = %d is undefined. Refer to software supplier.\n" ) % field->type );
+							return false;
+						}
+
+						atLeastOne = true;
+
+						Link* link = ( Link* ) ( table->matrix[ 0 ][ fieldIndex ] );
+
+						file << indention << indention << indention << table->lowercaseName << "." << field->name << " = new " << linkName << "( [ ";
+						for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count )
+						{
+							if ( count != link->links.begin() )
+							{
+								file << ", ";
+							}
+
+							file << "new " << countName << "( " << incapsulationName << "." << findLinkTargetFunctionName << "( " << count->table->lowercaseName << ", " << count->id << " ), " << count->count << " )";
+						}
+						file << " ] );\n";
+					}
+
+					if ( atLeastOne )
+					{
+						file << indention << indention << indention << "\n";
+					}
+
+					//for table of type "precise" we're done:
+					continue;
+				}
+
+				if ( table->type != Table::MANY && table->type != Table::MORPH )
 				{
 					continue;
 				}
 
-				bool atLeastOne = false;
-
-				for(size_t fieldIndex = 0; fieldIndex < table->fields.size(); fieldIndex++)
+				for ( size_t fieldIndex = 0; fieldIndex < table->fields.size(); ++fieldIndex )
 				{
-					Field* field = table->fields[fieldIndex];
+					Field* field = table->fields[ fieldIndex ];
 
-					if(IsLink(field) == false)
+					if ( IsLink( field ) == false )
 					{
 						continue;
 					}
@@ -776,9 +822,9 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		{
 			file << indention << indention << "\n";
 			file << indention << indention << "/** Looks for link target.*/\n";
-			file << indention << indention << "public static function " << findLinkTargetFunctionName << "( where:Object, id:int ): " << everyonesParentName << "\n";
+			file << indention << indention << "public static function " << findLinkTargetFunctionName << "( where : Object, id : int ): " << everyonesParentName << "\n";
 			file << indention << indention << "{\n";
-			file << indention << indention << indention << "for each ( var some:Object in where )\n";
+			file << indention << indention << indention << "for each ( var some : Object in where )\n";
 			file << indention << indention << indention << "{\n";
 			file << indention << indention << indention << indention << "if ( some.id == id )\n";
 			file << indention << indention << indention << indention << "{\n";
@@ -797,7 +843,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << "\\param index Place of obtaining link from (including) zero. NULL will be returned and error printed if index is out of range.\n";
 			file << indention << indention << "\\param type Class of obtaining link. NULL will be returned and error printed if obtained link cannot be cast to specified class.\n";
 			file << indention << indention << "\\param context Prefix for outputting error. Type something here to get understanding of where error occured when it will.*/\n";
-			file << indention << indention << "public static function GetLink( from:Link, index:int, type:Class, context:String ): Count\n";
+			file << indention << indention << "public static function GetLink( from : Link, index : int, type : Class, context : String ) : Count\n";
 			file << indention << indention << "{\n";
 			file << indention << indention << indention << "if ( from == null || type == null || context == null )\n";
 			file << indention << indention << indention << "{\n";
@@ -811,7 +857,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << indention << indention << "return null;\n";
 			file << indention << indention << indention << "}\n";
 			file << indention << indention << indention << "\n";
-			file << indention << indention << indention << "var target:Object = from.links[ index ].object;\n";
+			file << indention << indention << indention << "var target : Object = from.links[ index ].object;\n";
 			file << indention << indention << indention << "if ( ( target is type ) == false )\n";
 			file << indention << indention << indention << "{\n";
 			file << indention << indention << indention << indention << "Cc.error( \"E: \" + context + \": requested object of type \\\"\" + getQualifiedClassName( type ) + \"\\\", but object is of type \\\"\" + getQualifiedClassName( target ) + \"\\\" at index \" + index + \". Returning null.\" );\n";
@@ -958,26 +1004,26 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		//fields:
 		//link-specific:
 		linkFile << indention << indention << "/** All linked objects. Defined within constructor.*/\n";
-		linkFile << indention << indention << "public var links:Vector.<" << countName << "> = new Vector.<" << countName << ">;\n\n";
+		linkFile << indention << indention << "public var links : Vector.< " << countName << " > = new Vector.< " << countName << " >;\n\n";
 		//count-specific:
 		countFile << indention << indention << str( boost::format( "/** Linked object. Defined within constructor.*/\n" ) );
-		countFile << indention << indention << str( boost::format( "public var object:%s;\n" ) % everyonesParentName );
+		countFile << indention << indention << str( boost::format( "public var object : %s;\n" ) % everyonesParentName );
 		countFile << indention << indention << "\n";
 		countFile << indention << indention << str( boost::format( "/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/\n" ) );
-		countFile << indention << indention << str( boost::format( "public var count:int;\n" ) );
+		countFile << indention << indention << str( boost::format( "public var count : int;\n" ) );
 		countFile << indention << indention << "\n";
 		//everyones-parent specific:
 		everyonesParentFile << indention << indention << str( boost::format( "/** Any data which can be set by end-user.*/\n" ) );
-		everyonesParentFile << indention << indention << str( boost::format( "public var __opaqueData:*;\n" ) );
+		everyonesParentFile << indention << indention << str( boost::format( "public var __opaqueData : *;\n" ) );
 		everyonesParentFile << indention << indention << str( boost::format( "/** Pointer to table's incapsulation object.*/\n" ) );
-		everyonesParentFile << indention << indention << str( boost::format( "public var %s:%s;\n" ) % tabBound % boundName );
+		everyonesParentFile << indention << indention << str( boost::format( "public var %s : %s;\n" ) % tabBound % boundName );
 		//bound specific:
 		boundFile << indention << indention << str( boost::format( "/** Table's name without any modifications. Defined within constructor.*/\n" ) );
-		boundFile << indention << indention << str( boost::format( "public var tableName:String;\n" ) );
+		boundFile << indention << indention << str( boost::format( "public var tableName : String;\n" ) );
 		boundFile << indention << indention << str( boost::format( "/** Data objects of this table. Vector of objects inherited at least from \"%s\". Defined within constructor.*/\n" ) % everyonesParentName );
-		boundFile << indention << indention << str( boost::format( "public var %s:Object;\n" ) % objectsField );
+		boundFile << indention << indention << str( boost::format( "public var %s : Object;\n" ) % objectsField );
 		boundFile << indention << indention << str( boost::format( "/** Hash value from table's lowercase name to differentiate objects of this table from any other objects.*/\n" ) );
-		boundFile << indention << indention << str( boost::format( "public var %s:uint;\n" ) % hashField );
+		boundFile << indention << indention << str( boost::format( "public var %s : uint;\n" ) % hashField );
 		boundFile << indention << indention << "\n";
 
 
@@ -987,9 +1033,9 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		linkFile << indention << indention << "/** All counts at once.*/\n";
 		countFile << indention << indention << "/** Both pointer and count at construction.*/\n";
 		boundFile << indention << indention << "/** Both name and array at construction.*/\n";
-		linkFile << indention << indention << "public function " << linkName << "( links:Array )\n";
-		countFile << indention << indention << "public function " << countName << str( boost::format( "( object:%s, count:int )\n" ) % everyonesParentName );
-		boundFile << indention << indention << "public function " << boundName << str( boost::format( "( tableName:String, objects:Object, hash:uint )\n" ) );
+		linkFile << indention << indention << "public function " << linkName << "( links : Array )\n";
+		countFile << indention << indention << "public function " << countName << str( boost::format( "( object : %s, count : int )\n" ) % everyonesParentName );
+		boundFile << indention << indention << "public function " << boundName << str( boost::format( "( tableName : String, objects : Object, hash : uint )\n" ) );
 
 		//definition:
 		linkFile << indention << indention << "{\n";
@@ -998,7 +1044,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 		//definition:
 		//link-specific:
-		linkFile << indention << indention << indention << "for ( var i:int = 0; i < links.length; ++i )\n";
+		linkFile << indention << indention << indention << "for ( var i : int = 0; i < links.length; ++i )\n";
 		linkFile << indention << indention << indention << "{\n";
 		linkFile << indention << indention << indention << indention << "this.links.push( links[ i ] as " << countName << " );\n";
 		linkFile << indention << indention << indention << "}\n";
