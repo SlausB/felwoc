@@ -59,7 +59,7 @@ public:
 	int repeatedColumns;
 };
 
-class OdsSpreadsheet: public Spreadsheet
+class OdsSpreadsheet : public Spreadsheet
 {
 public:
 
@@ -75,32 +75,32 @@ public:
 
 	int GetColumnsCount()
 	{
-		if(cells.size() > 0)
+		if ( cells.size() > 0 )
 		{
-			return cells[0].size();
+			return cells[ 0 ].size();
 		}
 
 		return 0;
 	}
 
-	boost::shared_ptr<Cell> GetCell(const int rowIndex, const int columnIndex)
+	boost::shared_ptr< Cell > GetCell( const int rowIndex, const int columnIndex )
 	{
-		if(rowIndex < 0 || rowIndex >= cells.size() || columnIndex < 0 || columnIndex >= cells[rowIndex].size())
+		if ( rowIndex < 0 || rowIndex >= cells.size() || columnIndex < 0 || columnIndex >= cells[ rowIndex ].size() )
 		{
-			throw std::runtime_error("some index out of bounds");
+			throw std::runtime_error( "some index out of bounds" );
 		}
 
-		return cells[rowIndex][columnIndex];
+		return cells[ rowIndex ][ columnIndex ];
 	}
 
-	std::vector<std::vector< boost::shared_ptr<Cell> > > cells;
+	std::vector< std::vector< boost::shared_ptr< Cell > > > cells;
 
 	std::string name;
 };
 
 /** Prolongs cells within upper row which stretched over multiple rows.
 \return false on some error */
-bool SpanColumn(int& currentColumnIndex, std::vector<boost::shared_ptr<Cell> >& row, const int rowIndex, boost::shared_ptr<OdsSpreadsheet>& addingSpreadsheet, Messenger* messenger)
+bool SpanColumn( int& currentColumnIndex, std::vector< boost::shared_ptr< Cell > >& row, const int rowIndex, boost::shared_ptr< OdsSpreadsheet >& addingSpreadsheet, Messenger* messenger )
 {
 	const int previousRowIndex = rowIndex - 1;
 	//current row is first:
@@ -147,11 +147,11 @@ bool SpanColumn(int& currentColumnIndex, std::vector<boost::shared_ptr<Cell> >& 
 
 #define CHECK_NULL(node) if(node.empty()) { messenger->write(boost::format("E: PROGRAM ERROR: file's \"%s\" format was not evaluated properly. Line %d. Refer to software supplier.\n") % fileName % __LINE__); isOk = false; return; }
 
-OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
+OdsAsXml::OdsAsXml( const char* fileName, Messenger* messenger ): isOk(true)
 {
 	//loading file:
-	unzFile sourceFile = unzOpen(fileName);
-	if(sourceFile == NULL)
+	unzFile sourceFile = unzOpen( fileName );
+	if ( sourceFile == NULL )
 	{
 		messenger->write( boost::format( "E: source file \"%s\" was NOT opened: it does not exist or invalid).\n" ) % fileName );
 		isOk = false;
@@ -159,15 +159,15 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 	}
 
 	//we need just single file with data:
-	if(unzLocateFile(sourceFile, "content.xml", 0) != UNZ_OK)
+	if ( unzLocateFile( sourceFile, "content.xml", 0 ) != UNZ_OK)
 	{
-		messenger->write(boost::format("E: PROGRAM ERROR: OdsAsXml::OdsAsXml(): context file was NOT found within ZIP file \"%s\". Refer to software supplier.\n") % fileName);
+		messenger->write( boost::format( "E: PROGRAM ERROR: OdsAsXml::OdsAsXml(): context file was NOT found within ZIP file \"%s\". Refer to software supplier.\n" ) % fileName );
 		isOk = false;
 		return;
 	}
-	if(unzOpenCurrentFile(sourceFile) != UNZ_OK)
+	if ( unzOpenCurrentFile( sourceFile ) != UNZ_OK )
 	{
-		messenger->write(boost::format("E: PROGRAM ERROR: OdsAsXml::OdsAsXml(): current file was not opened. Refer to software supplier.\n"));
+		messenger->write( boost::format( "E: PROGRAM ERROR: OdsAsXml::OdsAsXml(): current file was not opened. Refer to software supplier.\n" ) );
 		isOk = false;
 		return;
 	}
@@ -177,7 +177,7 @@ OdsAsXml::OdsAsXml(const char* fileName, Messenger* messenger): isOk(true)
 	int currentBufferSize = 0;
 	const int BUFFER_SIZE = 8096;
 	char tempBuffer[BUFFER_SIZE];
-	for(;;)
+	for ( ;; )
 	{
 		const int copied = unzReadCurrentFile(sourceFile, tempBuffer, BUFFER_SIZE);
 		if(copied == 0)

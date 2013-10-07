@@ -24,34 +24,37 @@
 
 
 #define FOR_EACH_SPREADSHEET(name) \
-	for(size_t spreadsheetIndex = 0; spreadsheetIndex < spreadsheets.size(); spreadsheetIndex++) \
+	for ( size_t spreadsheetIndex = 0; spreadsheetIndex < spreadsheets.size(); ++spreadsheetIndex ) \
 	{ \
-		SpreadsheetTable* name = spreadsheets[spreadsheetIndex]; \
-		if(name->table == NULL) \
+		SpreadsheetTable* name = spreadsheets[ spreadsheetIndex ]; \
+		if ( name->table == NULL ) \
 		{ \
 			continue; \
 		}
 
 
-int ToInt(const double value)
+int ToInt( const double value )
 {
-    if(value >= 0.0f) return (int)(value + 0.5f);
-    else return (int)(value - 0.5f);
+    if ( value >= 0.0f )
+	{
+		return ( int ) ( value + 0.5f );
+	}
+    return ( int ) ( value - 0.5f );
 }
 
 /** Forms Excel-like (such as "ABK") column name.*/
-std::string PrintColumn(const int columnIndex)
+std::string PrintColumn( const int columnIndex )
 {
 	const int base = 'Z' - 'A' + 1;
 
 	int currentValue = columnIndex + 1;
 	std::string inverted;
-	for(;;)
+	for ( ;; )
 	{
 		const int overflow = currentValue / base;
 		const int remainder = currentValue % base;
-		inverted.push_back('A' + remainder - 1);
-		if(overflow > 0)
+		inverted.push_back( 'A' + remainder - 1 );
+		if ( overflow > 0 )
 		{
 			currentValue = overflow;
 		}
@@ -62,15 +65,15 @@ std::string PrintColumn(const int columnIndex)
 	}
 
 	std::string normal;
-	for(int i = (int)inverted.size() - 1; i >= 0 ; i--)
+	for ( int i = ( int ) inverted.size() - 1; i >= 0 ; --i )
 	{
-		normal.push_back(inverted[i]);
+		normal.push_back( inverted[ i ] );
 	}
 
 	return normal;
 }
 
-std::string ToChar(const wchar_t* source)
+std::string ToChar( const wchar_t* source )
 {
 	/*//const int codePage = CP_ACP;
 	const int codePage = CP_UTF8;
@@ -84,15 +87,15 @@ std::string ToChar(const wchar_t* source)
 	return CHAR_BUFFER;*/
 	
 	std::wstring temp = source;
-	return boost::to_utf8(temp);
+	return boost::to_utf8( temp );
 }
 
-int Keywords::Match(Messenger& messenger, const std::string& tableName, const int rowIndex, const int columnIndex, const std::string& keyword) const
+int Keywords::Match( Messenger& messenger, const std::string& tableName, const int rowIndex, const int columnIndex, const std::string& keyword ) const
 {
 	std::string lowercase = keyword;
-	std::transform(lowercase.begin(), lowercase.end(), lowercase.begin(), ::tolower);
+	std::transform( lowercase.begin(), lowercase.end(), lowercase.begin(), ::tolower );
 
-	std::map<std::string, int>::const_iterator it = keywords.find(lowercase);
+	std::map< std::string, int >::const_iterator it = keywords.find( lowercase );
 	if(it == keywords.end())
 	{
 		bool notFirst = true;
@@ -954,28 +957,32 @@ FieldData* ProcessFieldsData(Messenger& messenger, SpreadsheetTable* spreadsheet
 
 	case Field::ARRAY:
 		{
-			Array* arrayField = new Array(field, rowIndex + 1, columnIndex + 1);
+			Array* arrayField = new Array( field, rowIndex + 1, columnIndex + 1 );
 
 			const std::string text = dataCell->GetString();
 
 			//empty string is just an empty array...
 
-			std::vector<std::string> values = Parsing::Detach(text, ";");
-			for(std::vector<std::string>::const_iterator it = values.begin(); it != values.end(); it++)
+			//to avoid empty string treating as errors (while string filled with spaced still will be):
+			if ( text.empty() == false )
 			{
-				double value;
-
-				try
+				std::vector< std::string > values = Parsing::Detach( text, ";" );
+				for ( std::vector< std::string >::const_iterator it = values.begin(); it != values.end(); ++it )
 				{
-					value = boost::lexical_cast<double, std::string>(*it);
-				}
-				catch(...)
-				{
-					MSG(boost::format("E: array's part \"%s\" (originating from \"%s\") at row %d and column %d (%s) within table \"%s\" is not of numeral type. Type integral or real-valued numerals separated by semicolons.\n") % (*it) % text % (rowIndex + 1) % (columnIndex + 1) % PrintColumn(columnIndex) % spreadsheet->table->realName);
-					return NULL;
-				}
+					double value;
 
-				arrayField->values.push_back(value);
+					try
+					{
+						value = boost::lexical_cast< double, std::string >( *it );
+					}
+					catch ( ... )
+					{
+						MSG( boost::format( "E: array's part \"%s\" (originating from \"%s\") at row %d and column %d (%s) within table \"%s\" is not of numeral type. Type integral or real-valued numerals separated by semicolons.\n" ) % ( *it ) % text % ( rowIndex + 1 ) % ( columnIndex + 1 ) % PrintColumn( columnIndex ) % spreadsheet->table->realName );
+						return NULL;
+					}
+
+					arrayField->values.push_back( value );
+				}
 			}
 
 			return arrayField;
