@@ -55,16 +55,16 @@ const std::string hashField = "hash";
 
 
 
-bool IsLink(Field* field)
+bool IsLink( Field* field )
 {
-	if(field->type == Field::LINK)
+	if ( field->type == Field::LINK )
 	{
 		return true;
 	}
 
-	if(field->type == Field::INHERITED)
+	if ( field->type == Field::INHERITED )
 	{
-		if(((InheritedField*)field)->parentField->type == Field::LINK)
+		if ( ( ( InheritedField* )field )->parentField->type == Field::LINK )
 		{
 			return true;
 		}
@@ -76,12 +76,12 @@ bool IsLink(Field* field)
 /** Returns empty string on some error.*/
 std::string PrintType( Messenger& messenger, const Field* field )
 {
-	switch(field->type)
+	switch ( field->type )
 	{
 	case Field::INHERITED:
 		{
-			InheritedField* inheritedField = (InheritedField*)field;
-			return PrintType(messenger, inheritedField->parentField);
+			InheritedField* inheritedField = ( InheritedField* ) field;
+			return PrintType( messenger, inheritedField->parentField );
 		}
 		break;
 
@@ -624,7 +624,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			//for now there are no differences with MANY:
 			case Table::MORPH:
 				{
-					file << " : Vector.< " << classNames[ table ] << " > = new Vector.< " << classNames[ table ] << " >;\n";
+					file << " : Vector.< " << classNames[ table ] << " > = new Vector.< " << classNames[ table ] << " >( " << table->matrix.size() << ", true );\n";
 				}
 				break;
 
@@ -677,8 +677,12 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			}
 
 			//data itself:
+			//switching ".push()" semantic by "[ 666 ] = ...":
+			int pushingIndex = -1;
 			for ( std::vector<std::vector< FieldData* > >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); ++row )
 			{
+				++pushingIndex;
+
 				//create and add bound here if it wasn't yet for currently initing table:
 				if ( somethingOut == false && table->type == Table::MANY )
 				{
@@ -686,7 +690,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 					file << indention << indention << indention << allTablesName << ".push( " << boundVariableName << " );\n";
 				}
 
-				file << indention << indention << indention << table->lowercaseName << ".push( new " << classNames[ table ] << "( ";
+				file << indention << indention << indention << table->lowercaseName << "[ " << pushingIndex << " ] = new " << classNames[ table ] << "( ";
 
 				file << boundVariableName;
 
@@ -702,7 +706,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 					file << ", " << PrintData( messenger, fieldData );
 				}
 
-				file << " ) );\n";
+				file << " );\n";
 
 				somethingOut = true;
 			}
