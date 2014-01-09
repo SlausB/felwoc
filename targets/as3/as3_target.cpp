@@ -52,6 +52,22 @@ const std::string tabBound = "__tabBound";
 const std::string objectsField = "objects";
 const std::string hashField = "hash";
 
+const std::string objectsResolvingFunction = "ResolveObjects";
+const std::string objectsInitingFunction = "InitObjects_";
+const std::string linksResolvingFunction = "ResolveLinks";
+const std::string linksInitingFunction = "InitLinks_";
+
+const int OBJECTS_PER_STEP = 300;
+const int LINKS_PER_STEP = 300;
+
+/** Time consumption part of objects initing process.*/
+const float OBJECTS_PROGRESS_PART = 0.5;
+
+/** Name of the function which will be called when everything's done.*/
+const std::string onDone = "onDone";
+/** Name of the function which used to inform initialization process fulfillness if specified.*/
+const std::string progress = "progress";
+
 
 
 
@@ -316,6 +332,45 @@ std::string PrintCommentary( const std::string& indention, const std::string& co
 	return result;
 }
 
+void CloseObjectsInitingFunction( std::ofstream &file, const int group )
+{
+	//proceed initialization process:
+	file << indention << indention << indention << "\n";
+	file << indention << indention << indention << objectsResolvingFunction << "( " << group << " );\n";
+
+	file << indention << indention << "}\n";
+	file << indention << indention << "\n";
+}
+
+void CloseLinksInitingFunction( std::ofstream &file, const int group )
+{
+	//proceed initialization process:
+	file << indention << indention << indention << "\n";
+	file << indention << indention << indention << linksResolvingFunction << "( " << group << " );\n";
+
+	file << indention << indention << "}\n";
+	file << indention << indention << "\n";
+}
+
+void AS3Target::LinkBeingConnected( std::ofstream &file )
+{
+	++_someLinkIndex;
+	if ( _someLinkIndex % LINKS_PER_STEP == 0 )
+	{
+		//close previous function if needed:
+		if ( _linksSteps > 0 )
+		{
+			CloseLinksInitingFunction( file, _linksSteps );
+		}
+
+		//start new function:
+		file << indention << indention << "private function " << linksInitingFunction << _linksSteps << "() : void\n";
+		file << indention << indention << "{\n";
+
+		++_linksSteps;
+	}
+}
+
 
 bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::property_tree::ptree& config )
 {
@@ -566,6 +621,8 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 				//to print some errors when they happen:
 				file << indention << "import com.junkbyte.console.Cc;\n";
 				file << indention << "import flash.utils.getQualifiedClassName;\n";
+				file << indention << "import flash.utils.Timer;\n";
+				file << indention << "import flash.events.TimerEvent;\n";
 				file << indention << "\n";
 				//ApathySync's obligatory:
 				file << indention << "import " << overallNamespace << "." << linkName << ";\n";
@@ -649,19 +706,46 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		file << indention << indention << "public var " << allTablesName << " : Vector.< " << boundName << " > = new Vector.< " << boundName << " >;\n";
 		file << indention << indention << "\n";
 
+		//resulting function:
+		file << indention << indention << "/** Will be called when everything done.*/\n";
+		file << indention << indention << "private var _" << onDone << " : Function;\n";
+		file << indention << indention << "\n";
+
+		//progress informing function:
+		file << indention << indention << "/** Called to inform process completeness state from 0 to 1 if specified.*/\n";
+		file << indention << indention << "private var _" << progress << " : Function = null;\n";
+		file << indention << indention << "\n";
+		
+		//bounds declaration:
+		file << indention << indention << "/** Will be created and temporarely used during each table objects creation: for each table will be created it's own.*/\n";
+		file << indention << indention << "private var " << boundVariableName << " : " << boundName << ";\n";
+		file << indention << indention << "\n";
+
 		//constructor:
 		//initialization:
-		file << indention << indention << "/** All data definition.*/\n";
-		file << indention << indention << "public function " << incapsulationName << "()\n";
+		file << indention << indention << "/** All data definition.\n";
+		file << indention << indention << "\\param " << onDone << " function() : void Called when asynchronous initialization is done.\n";
+		file << indention << indention << "\\param " << progress << " function( progress : int ) : void Used to inform about initialization progress if specified. 0 -> 1 where 1 is fully initialized.*/\n";
+		file << indention << indention << "public function " << incapsulationName << "( " << onDone << " : Function, " << progress << " : Function = null )\n";
 		//definition:
 		file << indention << indention << "{\n";
 
-		//bounds declaration:
-		file << indention << indention << indention << "//will be created and temporarely used during each table objects creation: for each table will be created it's own:\n";
-		file << indention << indention << indention << "var " << boundVariableName << " : " << boundName << ";\n";
+		//remembering resulting function:
+		file << indention << indention << indention << "_" << onDone << " = " << onDone << ";\n";
+		file << indention << indention << indention << "_" << progress << " = " << progress << ";\n";
 		file << indention << indention << indention << "\n";
 
+		//initiate initing process:
+		file << indention << indention << indention << objectsResolvingFunction << "( 0 );\n";
+
+		//close the constructor:
+		file << indention << indention << "}\n";
+		file << indention << indention << "\n";
+
+		//objects initing functions which differ only by periods as different steps:
+		int objectsSteps = 0;
 		bool somethingOut = false;
+		int someObjectIndex = -1;
 		for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 		{
 			Table* table = ast.tables[ tableIndex ];
@@ -677,11 +761,27 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			}
 
 			//data itself:
-			//switching ".push()" semantic by "[ 666 ] = ...":
+			//switching ".push()" semantic with "[ 666 ] = ...":
 			int pushingIndex = -1;
-			for ( std::vector<std::vector< FieldData* > >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); ++row )
+			for ( std::vector< std::vector< FieldData* > >::const_iterator row = table->matrix.begin(); row != table->matrix.end(); ++row )
 			{
+				++someObjectIndex;
 				++pushingIndex;
+
+				if ( someObjectIndex % OBJECTS_PER_STEP == 0 )
+				{
+					//close previous function:
+					if ( objectsSteps > 0 )
+					{
+						CloseObjectsInitingFunction( file, objectsSteps );
+					}
+
+					//start new function:
+					file << indention << indention << "private function " << objectsInitingFunction << objectsSteps << "() : void\n";
+					file << indention << indention << "{\n";
+
+					++objectsSteps;
+				}
 
 				//create and add bound here if it wasn't yet for currently initing table:
 				if ( somethingOut == false && table->type == Table::MANY )
@@ -711,8 +811,15 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 				somethingOut = true;
 			}
 		}
+		if ( somethingOut )
+		{
+			CloseObjectsInitingFunction( file, objectsSteps );
+		}
 		file << indention << indention << indention << "\n";
+
 		//connect links:
+		_linksSteps = 0;
+		_someLinkIndex = -1;
 		{
 			file << indention << indention << indention << "//connect links:\n";
 
@@ -741,6 +848,8 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 						}
 
 						atLeastOne = true;
+
+						LinkBeingConnected( file );
 
 						Link* link = ( Link* ) ( table->matrix[ 0 ][ fieldIndex ] );
 
@@ -800,6 +909,8 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 							return false;
 						}
 
+						LinkBeingConnected( file );
+
 						file << indention << indention << indention << table->lowercaseName << "[ " << rowIndex << " ]." << field->name << " = new " << linkName << "( [ ";
 						for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count )
 						{
@@ -819,9 +930,100 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 					file << indention << indention << indention << "\n";
 				}
 			}
-		}
-		file << indention << indention << "}\n";
 
+			if ( _linksSteps > 0 )
+			{
+				CloseLinksInitingFunction( file, _linksSteps );
+			}
+		}
+
+		//objects initing redirection function:
+		{
+			file << indention << indention << "private function " << objectsResolvingFunction << "( step : int ) : void\n";
+			file << indention << indention << "{\n";
+			
+			//timer which will invoke initialization proceeding code:
+			file << indention << indention << indention << "var timer : Timer = new Timer( 20, 1 );\n";
+			file << indention << indention << indention << "\n";
+			
+			//inform progress if needed:
+			file << indention << indention << indention << "if ( _" << progress << " != null )\n";
+			file << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << "_" << progress << "( step / " << objectsSteps << " * " << OBJECTS_PROGRESS_PART << " );\n";
+			file << indention << indention << indention << "}\n";
+			file << indention << indention << indention << "\n";
+
+			file << indention << indention << indention << "timer.addEventListener( TimerEvent.TIMER_COMPLETE, function( ... args ) : void\n";
+			file << indention << indention << indention << "{\n";
+
+			//redirection itself:
+			file << indention << indention << indention << indention << "switch ( step )\n";
+			file << indention << indention << indention << indention << "{\n";
+			for ( int i = 0; i < objectsSteps; ++i )
+			{
+				file << indention << indention << indention << indention << indention << "case " << i << ":\n";
+				file << indention << indention << indention << indention << indention << indention << objectsInitingFunction << i << "();\n";
+				file << indention << indention << indention << indention << indention << indention << "break;\n";
+				file << indention << indention << indention << indention << indention << "\n";
+			}
+			file << indention << indention << indention << indention << indention << "default:\n";
+			file << indention << indention << indention << indention << indention << indention << linksResolvingFunction << "( 0 );\n";
+			file << indention << indention << indention << indention << indention << indention << "break;\n";
+			file << indention << indention << indention << indention << "}\n";
+
+			//close the timer handler and initiate it:
+			file << indention << indention << indention << "} );\n";
+			file << indention << indention << indention << "\n";
+			file << indention << indention << indention << "timer.start();\n";
+
+			//close the function:
+			file << indention << indention << "}\n";
+			file << indention << indention << "\n";
+		}
+
+		//links connection redirection function:
+		{
+			file << indention << indention << "private function " << linksResolvingFunction << "( step : int ) : void\n";
+			file << indention << indention << "{\n";
+
+			//timer which will invoke initialization proceeding code:
+			file << indention << indention << indention << "var timer : Timer = new Timer( 20, 1 );\n";
+			file << indention << indention << indention << "\n";
+
+			//inform progress if needed:
+			file << indention << indention << indention << "if ( _" << progress << " != null )\n";
+			file << indention << indention << indention << "{\n";
+			file << indention << indention << indention << indention << "_" << progress << "( " << OBJECTS_PROGRESS_PART << " + ( step / " << _linksSteps << " * ( 1.0 - " << OBJECTS_PROGRESS_PART << " ) ) );\n";
+			file << indention << indention << indention << "}\n";
+			file << indention << indention << indention << "\n";
+
+			file << indention << indention << indention << "timer.addEventListener( TimerEvent.TIMER_COMPLETE, function( ... args ) : void\n";
+			file << indention << indention << indention << "{\n";
+
+			//redirection itself:
+			file << indention << indention << indention << indention << "switch ( step )\n";
+			file << indention << indention << indention << indention << "{\n";
+			for ( int i = 0; i < _linksSteps; ++i )
+			{
+				file << indention << indention << indention << indention << indention << "case " << i << ":\n";
+				file << indention << indention << indention << indention << indention << indention << linksInitingFunction << i << "();\n";
+				file << indention << indention << indention << indention << indention << indention << "break;\n";
+				file << indention << indention << indention << indention << indention << "\n";
+			}
+			file << indention << indention << indention << indention << indention << "default:\n";
+			file << indention << indention << indention << indention << indention << indention << "_" << onDone << "();\n";
+			file << indention << indention << indention << indention << indention << indention << "break;\n";
+			file << indention << indention << indention << indention << "}\n";
+
+			//close the timer handler and initiate it:
+			file << indention << indention << indention << "} );\n";
+			file << indention << indention << indention << "\n";
+			file << indention << indention << indention << "timer.start();\n";
+
+			//close the function:
+			file << indention << indention << "}\n";
+		}
+		
 		//function which finds links targets:
 		{
 			file << indention << indention << "\n";
