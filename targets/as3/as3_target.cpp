@@ -721,6 +721,11 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		file << indention << indention << "private var " << boundVariableName << " : " << boundName << ";\n";
 		file << indention << indention << "\n";
 
+		//cached empty link:
+		file << indention << indention << "/** There are really much of such: let's cache it.*/\n";
+		file << indention << indention << "private var _emptyLink : " << linkName << " = new " << linkName << "( new < " << countName << " >[ ] );\n";
+		file << indention << indention << "\n";
+
 		//constructor:
 		//initialization:
 		file << indention << indention << "/** All data definition.\n";
@@ -853,17 +858,25 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 						Link* link = ( Link* ) ( table->matrix[ 0 ][ fieldIndex ] );
 
-						file << indention << indention << indention << table->lowercaseName << "." << field->name << " = new " << linkName << "( [ ";
-						for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count )
+						file << indention << indention << indention << table->lowercaseName << "." << field->name;
+						if ( link->links.empty() )
 						{
-							if ( count != link->links.begin() )
-							{
-								file << ", ";
-							}
-
-							file << "new " << countName << "( " << incapsulationName << "." << findLinkTargetFunctionName << "( " << count->table->lowercaseName << ", " << count->id << " ), " << count->count << " )";
+							file << " = _emptyLink;\n";
 						}
-						file << " ] );\n";
+						else
+						{
+							file << " = new " << linkName << "( new < " << countName << " >[ ";
+							for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count )
+							{
+								if ( count != link->links.begin() )
+								{
+									file << ", ";
+								}
+
+								file << "new " << countName << "( " << incapsulationName << "." << findLinkTargetFunctionName << "( " << count->table->lowercaseName << ", " << count->id << " ), " << count->count << " )";
+							}
+							file << " ] );\n";
+						}
 					}
 
 					if ( atLeastOne )
@@ -911,17 +924,25 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 						LinkBeingConnected( file );
 
-						file << indention << indention << indention << table->lowercaseName << "[ " << rowIndex << " ]." << field->name << " = new " << linkName << "( [ ";
-						for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count )
+						file << indention << indention << indention << table->lowercaseName << "[ " << rowIndex << " ]." << field->name;
+						if ( link->links.empty() )
 						{
-							if ( count != link->links.begin() )
-							{
-								file << ", ";
-							}
-
-							file << "new " << countName << "( " << incapsulationName << "." << findLinkTargetFunctionName << "( " << count->table->lowercaseName << ", " << count->id << " ), " << count->count << " )";
+							file << " = _emptyLink;\n";
 						}
-						file << " ] );\n";
+						else
+						{
+							file << " = new " << linkName << "( new < " << countName << " >[ ";
+							for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count )
+							{
+								if ( count != link->links.begin() )
+								{
+									file << ", ";
+								}
+
+								file << "new " << countName << "( " << incapsulationName << "." << findLinkTargetFunctionName << "( " << count->table->lowercaseName << ", " << count->id << " ), " << count->count << " )";
+							}
+							file << " ] );\n";
+						}
 					}
 				}
 
@@ -1081,13 +1102,13 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 			file << indention << indention << "\\param hash Hash value from table's name when looking Info is described.\n";
 			file << indention << indention << "\\param id Identificator within it's table.\n";
 			file << indention << indention << "\\return Found Info or null if nothing was found.*/\n";
-			file << indention << indention << "public function FindInfo( hash:uint, id:int ): Info\n";
+			file << indention << indention << "public function FindInfo( hash : uint, id : int ) : Info\n";
 			file << indention << indention << "{\n";
-			file << indention << indention << indention << "for each ( var " << lowerBoundName << ":" << boundName << " in " << allTablesName << " )\n";
+			file << indention << indention << indention << "for each ( var " << lowerBoundName << " : " << boundName << " in " << allTablesName << " )\n";
 			file << indention << indention << indention << "{\n";
 			file << indention << indention << indention << indention << "if ( hash == " << lowerBoundName << "." << hashField << " )\n";
 			file << indention << indention << indention << indention << "{\n";
-			file << indention << indention << indention << indention << indention << "for each ( var info:Object in " << lowerBoundName << "." << objectsField << " )\n";
+			file << indention << indention << indention << indention << indention << "for each ( var info : Object in " << lowerBoundName << "." << objectsField << " )\n";
 			file << indention << indention << indention << indention << indention << "{\n";
 			file << indention << indention << indention << indention << indention << indention << "if ( id == info.id )\n";
 			file << indention << indention << indention << indention << indention << indention << "{\n";
@@ -1107,7 +1128,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		file << indention << "}\n";
 
 		//package close:
-		file << "}\n\n";
+		file << "}\n\n\n\n";
 	}
 
 	//link, count, everyones parent, bound:
@@ -1239,7 +1260,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		linkFile << indention << indention << "/** All counts at once.*/\n";
 		countFile << indention << indention << "/** Both pointer and count at construction.*/\n";
 		boundFile << indention << indention << "/** Both name and array at construction.*/\n";
-		linkFile << indention << indention << "public function " << linkName << "( links : Array )\n";
+		linkFile << indention << indention << "public function " << linkName << "( links : Vector.< " << countName << " > )\n";
 		countFile << indention << indention << "public function " << countName << str( boost::format( "( object : %s, count : int )\n" ) % everyonesParentName );
 		boundFile << indention << indention << "public function " << boundName << str( boost::format( "( tableName : String, objects : Object, hash : uint )\n" ) );
 
@@ -1250,10 +1271,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 
 		//definition:
 		//link-specific:
-		linkFile << indention << indention << indention << "for ( var i : int = 0; i < links.length; ++i )\n";
-		linkFile << indention << indention << indention << "{\n";
-		linkFile << indention << indention << indention << indention << "this.links.push( links[ i ] as " << countName << " );\n";
-		linkFile << indention << indention << indention << "}\n";
+		linkFile << indention << indention << indention << "this.links = links;\n";
 		//count-specific:
 		countFile << indention << indention << indention << "this.object = object;\n";
 		countFile << indention << indention << indention << "this.count = count;\n";
