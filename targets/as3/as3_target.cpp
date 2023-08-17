@@ -10,7 +10,9 @@
 
 #include <boost/lexical_cast.hpp>
 
-#include "../../smhasher/MurmurHash3.h"
+//#include "../../smhasher/MurmurHash3.h"
+//trying to use std::hash instead:
+#include <functional>
 
 #include <algorithm>
 
@@ -578,8 +580,11 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		{
 			Table* table = ast.tables[ tableIndex ];
 				
-			uint32_t hash;
-			MurmurHash3_x86_32( table->lowercaseName.c_str(), table->lowercaseName.size(), 0, &hash );
+			/*uint32_t hash;
+			MurmurHash3_x86_32( table->lowercaseName.c_str(), table->lowercaseName.size(), 0, &hash );*/
+            std::hash< std::string > hash_function;
+            const uint32_t hash = hash_function( table->lowercaseName );
+
 			//check that generated hash value doesn't collide with all already generated hash values:
 			for ( std::map< std::string, uint32_t >::iterator it = hashes.begin(); it != hashes.end(); ++it )
 			{
@@ -1153,7 +1158,7 @@ bool AS3Target::Generate( const AST& ast, Messenger& messenger, const boost::pro
 		std::ofstream everyonesParentFile( everyonesParentFileName.c_str() );
 		if ( everyonesParentFile.fail() )
 		{
-			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % everyonesParentFile );
+			messenger << ( boost::format( "E: AS3: file \"%s\" was NOT opened.\n" ) % everyonesParentFileName );
 			return false;
 		}
 

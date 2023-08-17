@@ -1,0 +1,10 @@
+services:
+  compiler:
+    build:
+      context: .
+    tty: true
+    command: tail -F /dev/null
+    volumes:
+      - ./:/home/docker/app
+    
+    

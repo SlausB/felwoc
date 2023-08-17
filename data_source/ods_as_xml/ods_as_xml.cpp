@@ -1,7 +1,9 @@
 ﻿
 #include "ods_as_xml.h"
 
-#include "zip/minizip/unzip.h"
+//#include "zip/deflate.h"
+//#include "zip/minizip/unzip.h"
+#include "contrib/minizip/unzip.h"
 
 #include "boost/make_shared.hpp"
 
