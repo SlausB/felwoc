@@ -59,16 +59,21 @@ const std::string tabBound = "__tabBound";
 const std::string objectsField = "objects";
 const std::string hashField = "hash";
 
+const std::string stringsResolvingFunction = "ResolveStrings";
+const std::string stringsInitingFunction = "InitStrings_";
 const std::string objectsResolvingFunction = "ResolveObjects";
 const std::string objectsInitingFunction = "InitObjects_";
 const std::string linksResolvingFunction = "ResolveLinks";
 const std::string linksInitingFunction = "InitLinks_";
 
-const int OBJECTS_PER_STEP = 3000;
-const int LINKS_PER_STEP = 3000;
+const int STRINGS_PER_STEP = 1000;
+const int OBJECTS_PER_STEP = 1000;
+const int LINKS_PER_STEP   = 1000;
 
-/** Time consumption part of objects initing process.*/
+/** Time consumption part of initing processes.*/
+const float STRINGS_PROGRESS_PART = 0.3;
 const float OBJECTS_PROGRESS_PART = 0.5;
+const float LINKS_PROGRESS_PART = 0.1;
 
 /** Name of the function which will be called when everything's done.*/
 const std::string onDone = "onDone";
@@ -97,15 +102,25 @@ void obligatory_imports(
 
 bool IsLink( const Field * field )
 {
-	if ( field->type == Field::LINK )
-	{
+	if ( field->type == Field::LINK ) {
 		return true;
 	}
 
-	if ( field->type == Field::INHERITED )
-	{
-		if ( ( ( InheritedField* )field )->parentField->type == Field::LINK )
-		{
+	if ( field->type == Field::INHERITED ) {
+		if ( ( ( InheritedField* )field )->parentField->type == Field::LINK ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+bool IsText( const Field * field ) {
+	if ( field->type == Field::TEXT ) {
+		return true;
+	}
+
+	if ( field->type == Field::INHERITED ) {
+		if ( ( ( InheritedField* )field )->parentField->type == Field::TEXT ) {
 			return true;
 		}
 	}
@@ -159,6 +174,26 @@ std::string PrintType( Messenger& messenger, const Field* field )
 	return std::string();
 }
 
+string print_string( const string & s ) {
+    std::string result = "\"";
+    //escape:
+    for ( size_t i = 0; i < s.size(); ++i )
+    {
+        switch ( s[ i ] ) {
+            case '"':
+                result.push_back( '\\' );
+                break;
+
+            case '\n':
+                result.append( "\\n" );
+                continue;
+        }
+
+        result.push_back( s[ i ] );
+    }
+    result.push_back( '"' );
+    return result;
+}
 std::string PrintData( Messenger& messenger, const FieldData* fieldData )
 {
 	switch ( fieldData->field->type ) {
@@ -183,24 +218,7 @@ std::string PrintData( Messenger& messenger, const FieldData* fieldData )
         case Field::TEXT: {
             Text* text = ( Text* ) fieldData;
 
-            std::string result = "\"";
-            //escape:
-            for ( size_t i = 0; i < text->text.size(); ++i )
-            {
-                switch ( text->text[ i ] ) {
-                    case '"':
-                        result.push_back( '\\' );
-                        break;
-
-                    case '\n':
-                        result.append( "\\n" );
-                        continue;
-                }
-
-                result.push_back( text->text[ i ] );
-            }
-            result.push_back( '"' );
-            return result; }
+            return print_string( text->text ); }
 
         case Field::FLOAT: {
             Float* asFloat = ( Float* ) fieldData;
@@ -293,24 +311,60 @@ std::string PrintCommentary( const std::string& indention, const std::string& co
 	return result;
 }
 
-void CloseObjectsInitingFunction( std::ofstream &file, const int group )
-{
+void CloseSteppedFunction( std::ofstream & file, const int group, const auto name ) {
 	//proceed initialization process:
 	file << indention << indention << "\n";
-	file << indention << indention << "this." << objectsResolvingFunction << "( " << group << " );\n";
+	file << indention << indention << "this." << name << "( " << group << " );\n";
 
 	file << indention << "}\n";
 	file << indention << "\n";
 }
+void CloseObjectsInitingFunction( std::ofstream &file, const int group ) {
+    CloseSteppedFunction( file, group, objectsResolvingFunction );
+}
 
-void CloseLinksInitingFunction( std::ofstream &file, const int group )
-{
-	//proceed initialization process:
-	file << indention << indention << "\n";
-	file << indention << indention << "this." << linksResolvingFunction << "( " << group << " );\n";
+void CloseLinksInitingFunction( std::ofstream &file, const int group ) {
+    CloseSteppedFunction( file, group, linksResolvingFunction );
+}
 
-	file << indention << "}\n";
-	file << indention << "\n";
+void PrintResolvingFunction(
+    std::ofstream & file,
+    const string resolve_name,
+    const string init_name,
+    const int steps,
+    const float progress_part,
+    const string next
+) {
+    file << indention << "private " << resolve_name << "( step : number ) : void {\n";
+    
+    //inform progress if needed:
+    file << indention << indention << "if ( this._" << progress << " ) {\n";
+    file << indention << indention << indention << "this._" << progress << "( step / " << steps << " * " << progress_part << " );\n";
+    file << indention << indention << "}\n";
+    file << indention << indention << "\n";
+
+    file << indention << indention << "this.postpone( () => {\n";
+
+    //redirection itself:
+    file << indention << indention << indention << "switch ( step ) {\n";
+    for ( int i = 0; i < steps; ++i )
+    {
+        file << indention << indention << indention << indention << "case " << i << ":\n";
+        file << indention << indention << indention << indention << indention << "this." << init_name << i << "();\n";
+        file << indention << indention << indention << indention << indention << "break;\n";
+        file << indention << indention << indention << indention << "\n";
+    }
+    file << indention << indention << indention << indention << "default:\n";
+    file << indention << indention << indention << indention << indention << next << "\n";
+    file << indention << indention << indention << indention << indention << "break;\n";
+    file << indention << indention << indention << "}\n";
+
+    //close the timer handler and initiate it:
+    file << indention << indention << "} );\n";
+
+    //close the function:
+    file << indention << "}\n";
+    file << indention << "\n";
 }
 
 } //namespace TS
@@ -383,6 +437,28 @@ void TS_Target::LinkBeingConnected( std::ofstream &file ) {
 	}
 }
 
+auto cache_strings( const AST & ast, Messenger & messenger ) {
+    map< string, int32_t > c;
+
+    for ( const Table * t : ast.tables ) {
+        for ( const auto & row : t->matrix ) {
+            for ( const FieldData * data : row ) {
+                if ( IsText( data->field ) ) {
+                    c[ PrintData( messenger, data ) ] = 0;
+                }
+            }
+        }
+    }
+
+    size_t i = 0;
+    for ( auto & text : c ) {
+        text.second = i;
+        ++ i;
+    }
+
+    return c;
+}
+
 
 bool TS_Target::Generate(
     const AST& ast,
@@ -390,6 +466,7 @@ bool TS_Target::Generate(
     const boost::property_tree::ptree& config
 ) {
     const auto inheritance_ordered = order_inheritance_wise( ast );
+    const auto strings_cache = cache_strings( ast, messenger );
 
 	targetFolder = config.get< std::string >( "ts_target_folder", "./ts/code/design" );
 	//get rid of last folder separator:
@@ -686,6 +763,11 @@ bool TS_Target::Generate(
 		file << indention << "private _emptyLink : " << linkName << " = new " << linkName << "( [ ] )\n";
 		file << indention << "\n";
 
+        //strings cache:
+        file << indention << "/** Strings cache to reuse frequently reappearing literals.*/\n";
+        file << indention << "private _c : string [] = new Array< " << strings_cache.size() << " >\n";
+		file << indention << "\n";
+
 		//constructor:
 		//initialization:
 		file << indention << "/** All data definition.\n";
@@ -701,10 +783,33 @@ bool TS_Target::Generate(
 		file << indention << indention << "\n";
 
 		//initiate initing process:
-		file << indention << indention << "this." << objectsResolvingFunction << "( 0 )\n";
+		file << indention << indention << "this." << stringsResolvingFunction << "( 0 )\n";
 
 		//close the constructor:
 		file << indention << "}\n";
+		file << indention << "\n";
+
+        //strings cache initing functions:
+        int stringsSteps = 0;
+        int someCachedIndex = -1;
+        for ( const auto & c : strings_cache ) {
+            ++ someCachedIndex;
+
+            if ( someCachedIndex % STRINGS_PER_STEP == 0 ) {
+                //close previous function:
+                if ( stringsSteps > 0 ) {
+                    CloseSteppedFunction( file, stringsSteps, stringsResolvingFunction );
+                }
+
+                //start new function:
+                file << indention << "private " << stringsInitingFunction << stringsSteps << "() : void {\n";
+
+                ++ stringsSteps;
+            }
+
+            file << indention << indention << "this._c[ " << c.second << " ] = " << c.first << "\n";
+        }
+        CloseSteppedFunction( file, stringsSteps, stringsResolvingFunction );
 		file << indention << "\n";
 
 		//objects initing functions which differ only by periods as different steps:
@@ -718,7 +823,7 @@ bool TS_Target::Generate(
 			}
 
 			if ( somethingOut ) {
-				file << indention << indention << "\n";
+				file << indention << "\n";
 				somethingOut = false;
 			}
 
@@ -740,19 +845,18 @@ bool TS_Target::Generate(
 					}
 
 					//start new function:
-					file << indention << indention << "private " << objectsInitingFunction << objectsSteps << "() : void\n";
-					file << indention << indention << "{\n";
+					file << indention << "private " << objectsInitingFunction << objectsSteps << "() : void {\n";
 
 					++objectsSteps;
 				}
 
 				//create and add bound here if it wasn't yet for currently initing table:
 				if ( somethingOut == false && table->type == Table::MANY ) {
-					file << indention << indention << indention << "this." << boundVariableName << " = new " << boundName << "( \"" << table->realName << "\", this." << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " );\n";
-					file << indention << indention << indention << "this." << allTablesName << ".push( this." << boundVariableName << " );\n";
+					file << indention << indention << "this." << boundVariableName << " = new " << boundName << "( \"" << table->realName << "\", this." << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " );\n";
+					file << indention << indention << "this." << allTablesName << ".push( this." << boundVariableName << " );\n";
 				}
 
-				file << indention << indention << indention << "this." << table->lowercaseName << "[ " << pushingIndex << " ] = new " << classNames.at( table ) << "( ";
+				file << indention << indention << "this." << table->lowercaseName << "[ " << pushingIndex << " ] = new " << classNames.at( table ) << "( ";
 
 				file << "this." << boundVariableName;
 
@@ -769,12 +873,17 @@ bool TS_Target::Generate(
                     }
                 );
 
-				for ( const FieldData * fieldData : inh_reordered ) {
-					if ( IsLink( fieldData->field ) ) {
+				for ( const FieldData * data : inh_reordered ) {
+					if ( IsLink( data->field ) ) {
 						continue;
 					}
 
-					file << ", " << PrintData( messenger, fieldData );
+                    if ( IsText( data->field ) ) {
+                        file << ", " << "this._c[ " << strings_cache.at( PrintData( messenger, data ) ) << " ]";
+                    }
+                    else {
+					    file << ", " << PrintData( messenger, data );
+                    }
 				}
 
 				file << " );\n";
@@ -823,8 +932,7 @@ bool TS_Target::Generate(
 						if ( link->links.empty() ) {
 							file << " = this._emptyLink;\n";
 						}
-						else
-						{
+						else {
 							file << " = new " << linkName << "( [ ";
 							for (
                                 std::vector< Count >::const_iterator count = link->links.begin();
@@ -841,8 +949,7 @@ bool TS_Target::Generate(
 						}
 					}
 
-					if ( atLeastOne )
-					{
+					if ( atLeastOne ) {
 						file << indention << indention << "\n";
 					}
 
@@ -902,8 +1009,7 @@ bool TS_Target::Generate(
 					}
 				}
 
-				if ( atLeastOne )
-				{
+				if ( atLeastOne ) {
 					file << indention << indention << indention << "\n";
 				}
 			}
@@ -917,76 +1023,10 @@ bool TS_Target::Generate(
         file << indention << indention << "setTimeout( f, 1 )\n";
         file << indention << "}\n";
 
-		//objects initing redirection function:
-		{
-			file << indention << "private " << objectsResolvingFunction << "( step : number ) : void {\n";
-			
-			//inform progress if needed:
-			file << indention << indention << "if ( this._" << progress << " ) {\n";
-			file << indention << indention << indention << "this._" << progress << "( step / " << objectsSteps << " * " << OBJECTS_PROGRESS_PART << " );\n";
-			file << indention << indention << "}\n";
-			file << indention << indention << "\n";
+        PrintResolvingFunction( file, stringsResolvingFunction, stringsInitingFunction, stringsSteps, STRINGS_PROGRESS_PART, str( boost::format( "this.%s(0)" ) % objectsResolvingFunction ) );
+        PrintResolvingFunction( file, objectsResolvingFunction, objectsInitingFunction, objectsSteps, OBJECTS_PROGRESS_PART, str( boost::format( "this.%s(0)" ) % linksResolvingFunction ) );
+        PrintResolvingFunction( file, linksResolvingFunction,   linksInitingFunction,   _linksSteps,  LINKS_PROGRESS_PART,   str( boost::format( "this._%s()" ) % onDone ) );
 
-			file << indention << indention << "this.postpone( () => {\n";
-
-			//redirection itself:
-			file << indention << indention << indention << "switch ( step ) {\n";
-			for ( int i = 0; i < objectsSteps; ++i )
-			{
-				file << indention << indention << indention << indention << "case " << i << ":\n";
-				file << indention << indention << indention << indention << indention << "this." << objectsInitingFunction << i << "();\n";
-				file << indention << indention << indention << indention << indention << "break;\n";
-				file << indention << indention << indention << indention << "\n";
-			}
-			file << indention << indention << indention << indention << "default:\n";
-			file << indention << indention << indention << indention << indention << "this." << linksResolvingFunction << "( 0 );\n";
-			file << indention << indention << indention << indention << indention << "break;\n";
-			file << indention << indention << indention << "}\n";
-
-			//close the timer handler and initiate it:
-			file << indention << indention << "} );\n";
-
-			//close the function:
-			file << indention << "}\n";
-			file << indention << "\n";
-		}
-
-		//links connection redirection function:
-		{
-			file << indention << "private " << linksResolvingFunction << "( step : number ) : void\n";
-			file << indention << "{\n";
-
-			//inform progress if needed:
-			file << indention << indention << "if ( this._" << progress << " != null )\n";
-			file << indention << indention << "{\n";
-			file << indention << indention << indention << "this._" << progress << "( " << OBJECTS_PROGRESS_PART << " + ( step / " << _linksSteps << " * ( 1.0 - " << OBJECTS_PROGRESS_PART << " ) ) );\n";
-			file << indention << indention << "}\n";
-			file << indention << indention << "\n";
-
-			file << indention << indention << "this.postpone( () => {\n";
-
-			//redirection itself:
-			file << indention << indention << indention << "switch ( step )\n";
-			file << indention << indention << indention << "{\n";
-			for ( int i = 0; i < _linksSteps; ++i )
-			{
-				file << indention << indention << indention << indention << "case " << i << ":\n";
-				file << indention << indention << indention << indention << indention << "this." << linksInitingFunction << i << "();\n";
-				file << indention << indention << indention << indention << indention << "break;\n";
-				file << indention << indention << indention << indention << "\n";
-			}
-			file << indention << indention << indention << indention << "default:\n";
-			file << indention << indention << indention << indention << indention << "this._" << onDone << "();\n";
-			file << indention << indention << indention << indention << indention << "break;\n";
-			file << indention << indention << indention << "}\n";
-
-			//close the timer handler and initiate it:
-			file << indention << indention << "} );\n";
-
-			//close the function:
-			file << indention << "}\n";
-		}
-		
 		//function which finds links targets:
 		{
 			file << indention << "\n";
@@ -1046,7 +1086,7 @@ bool TS_Target::Generate(
 
 
 		//body close:
-		file << indention << "}\n";
+		file << "}\n";
 	}
 
 	//link, count, everyones parent, bound:
