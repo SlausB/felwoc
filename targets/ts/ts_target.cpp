@@ -71,9 +71,7 @@ const int OBJECTS_PER_STEP = 1000;
 const int LINKS_PER_STEP   = 1000;
 
 /** Time consumption part of initing processes.*/
-const float STRINGS_PROGRESS_PART = 0.3;
-const float OBJECTS_PROGRESS_PART = 0.5;
-const float LINKS_PROGRESS_PART = 0.1;
+const float step_parts[] = { 30, 50, 10 };
 
 /** Name of the function which will be called when everything's done.*/
 const std::string onDone = "onDone";
@@ -332,14 +330,24 @@ void PrintResolvingFunction(
     const string resolve_name,
     const string init_name,
     const int steps,
-    const float progress_part,
+    const int progress_step,
     const string next
 ) {
     file << indention << "private " << resolve_name << "( step : number ) : void {\n";
+
+    float overall_progress = 0;
+    for ( const auto p : step_parts ) {
+        overall_progress += p;
+    }
+    float previous_steps = 0;
+    for ( size_t i = 0; i < progress_step; ++ i ) {
+        previous_steps += step_parts[ i ];
+    }
+    
     
     //inform progress if needed:
     file << indention << indention << "if ( this._" << progress << " ) {\n";
-    file << indention << indention << indention << "this._" << progress << "( step / " << steps << " * " << progress_part << " );\n";
+    file << indention << indention << indention << "this._" << progress << "( "<<previous_steps<<" / "<<overall_progress<<" + step / "<<steps<<" * ( "<<step_parts[ progress_step ]<<" / "<<overall_progress<<" ) )\n";
     file << indention << indention << "}\n";
     file << indention << indention << "\n";
 
@@ -765,7 +773,7 @@ bool TS_Target::Generate(
 
         //strings cache:
         file << indention << "/** Strings cache to reuse frequently reappearing literals.*/\n";
-        file << indention << "private _c : string [] = new Array< " << strings_cache.size() << " >\n";
+        file << indention << "private _c : string [] = new Array< string >( " << strings_cache.size() << " )\n";
 		file << indention << "\n";
 
 		//constructor:
@@ -1023,9 +1031,9 @@ bool TS_Target::Generate(
         file << indention << indention << "setTimeout( f, 1 )\n";
         file << indention << "}\n";
 
-        PrintResolvingFunction( file, stringsResolvingFunction, stringsInitingFunction, stringsSteps, STRINGS_PROGRESS_PART, str( boost::format( "this.%s(0)" ) % objectsResolvingFunction ) );
-        PrintResolvingFunction( file, objectsResolvingFunction, objectsInitingFunction, objectsSteps, OBJECTS_PROGRESS_PART, str( boost::format( "this.%s(0)" ) % linksResolvingFunction ) );
-        PrintResolvingFunction( file, linksResolvingFunction,   linksInitingFunction,   _linksSteps,  LINKS_PROGRESS_PART,   str( boost::format( "this._%s()" ) % onDone ) );
+        PrintResolvingFunction( file, stringsResolvingFunction, stringsInitingFunction, stringsSteps, 0, str( boost::format( "this.%s(0)" ) % objectsResolvingFunction ) );
+        PrintResolvingFunction( file, objectsResolvingFunction, objectsInitingFunction, objectsSteps, 1, str( boost::format( "this.%s(0)" ) % linksResolvingFunction ) );
+        PrintResolvingFunction( file, linksResolvingFunction,   linksInitingFunction,   _linksSteps,  2, str( boost::format( "this._%s()" ) % onDone ) );
 
 		//function which finds links targets:
 		{
