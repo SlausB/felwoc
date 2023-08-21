@@ -2,9 +2,7 @@
 clear
 reset
 
-set -e
-
-chmod a+rw -R ./ >/dev/null 2>/dev/null
+chmod a+rwX -R ./ >/dev/null 2>/dev/null
 
 # application might store data in anonymous volumes which causes data persist among multiple runs which might clash with newly defined configuration (thus need to use --force-recreate):
 docker compose down

@@ -17,6 +17,7 @@
 
 #include "targets/target_platform.h"
 #include "targets/as3/as3_target.h"
+#include "targets/ts/ts_target.h"
 
 #include "parsing.h"
 
@@ -72,6 +73,7 @@ int main()
 		//add generators here:
 		std::vector<TargetPlatform*> platforms;
 		platforms.push_back(new AS3Target);
+        platforms.push_back( new TS_Target );
 
 		for(int i = 0; i < xmlAsOds.GetSpreadsheetsCount(); i++)
 		{

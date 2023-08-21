@@ -61,16 +61,19 @@ cc_library(
     name = "targets",
     srcs = [
         "targets/as3/as3_target.cpp",
+        "targets/ts/ts_target.cpp",
     ],
     hdrs = [
         "targets/target_platform.h",
         "targets/as3/as3_target.h",
+        "targets/ts/ts_target.h",
     ],
     deps = [
         "@boost//:property_tree",
         ":ast",
         ":output",
     ],
+    copts = gcc_options,
 )
 
 cc_library(
