@@ -10,17 +10,14 @@ RUN apt-get -y update && apt-get -y install \
     ccrypt \
 	sudo \
 	curl \
-    gdb
-
-
-RUN useradd -m docker && echo "docker:docker" | chpasswd && adduser docker sudo
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-USER docker
-CMD /bin/bash
+    gdb \
+    # provide libneko.so.2 for Haxe: \
+    neko \
+    # to install Lime: \
+    libgl1-mesa-dev libglu1-mesa-dev g++ g++-multilib gcc-multilib libasound2-dev libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev
 
 # nvm environment variables
-ENV NVM_DIR /home/docker/.nvm
+ENV NVM_DIR /root/.nvm
 ENV NODE_VERSION 20.5.1
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
 # install node and npm
@@ -36,6 +33,32 @@ ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 RUN node -v
 RUN npm -v
 
+# Bazel
 RUN npm install -g @bazel/bazelisk
+RUN wget -O /root/buildifier https://github.com/bazelbuild/buildtools/releases/download/v6.3.3/buildifier-linux-amd64
+RUN chmod +x /root/buildifier
+RUN echo 'export PATH="$PATH:/root"' >> ~/.bashrc
+ENV PATH="/root:${PATH}"
 
-WORKDIR /home/docker/app
+# persisting Bazel's cache:
+RUN mkdir -p ~/.cache/bazel
+RUN ln -s /root/app/bazel_cache ~/.cache/bazel
+
+# Haxe:
+RUN mkdir -p /root/haxe
+WORKDIR /root/haxe
+RUN wget -c https://github.com/HaxeFoundation/haxe/releases/download/4.3.2/haxe-4.3.2-linux64.tar.gz -O - | tar -xz --strip-components=1
+RUN echo 'export PATH="$PATH:/root/haxe"' >> ~/.bashrc
+ENV PATH="/root/haxe:${PATH}"
+RUN haxelib setup /usr/lib/haxe/lib
+# Lime:
+RUN git clone --recursive https://github.com/openfl/lime
+RUN haxelib dev lime lime && \
+    haxelib install format && \
+    haxelib install hxp && \
+    haxelib install hxcpp && \
+    haxelib install openfl && \
+    haxelib run lime rebuild linux
+
+WORKDIR /root/app
+CMD /bin/bash

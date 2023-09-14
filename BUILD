@@ -60,13 +60,26 @@ cc_library(
 cc_library(
     name = "targets",
     srcs = [
+        "targets/utils.cpp",
         "targets/as3/as3_target.cpp",
         "targets/ts/ts_target.cpp",
+        "targets/haxe/haxe_target.cpp",
     ],
     hdrs = [
+        "targets/utils.hpp",
+
         "targets/target_platform.h",
+
         "targets/as3/as3_target.h",
+
         "targets/ts/ts_target.h",
+
+        "targets/haxe/haxe_target.h",
+        "targets/haxe/Infos.hx",
+        "targets/haxe/Bound.hx",
+        "targets/haxe/Count.hx",
+        "targets/haxe/Link.hx",
+        "targets/haxe/FosUtils.hx",
     ],
     deps = [
         "@boost//:property_tree",

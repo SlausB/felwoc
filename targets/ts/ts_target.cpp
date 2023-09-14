@@ -1,5 +1,6 @@
 ﻿
 #include "ts_target.h"
+#include "../utils.hpp"
 
 #include <fstream>
 #include <boost/filesystem.hpp>
@@ -12,20 +13,6 @@ using namespace std;
 
 
 namespace TS {
-
-uint32_t fnv1aHash(const std::string& input) {
-    const uint32_t FNV_OFFSET_BASIS = 2166136261u;
-    const uint32_t FNV_PRIME = 16777619u;
-
-    uint32_t hash = FNV_OFFSET_BASIS;
-
-    for (char c : input) {
-        hash ^= static_cast<uint32_t>(c);
-        hash *= FNV_PRIME;
-    }
-
-    return hash;
-}
 
 std::string targetFolder;
 
@@ -96,36 +83,6 @@ void obligatory_imports(
     import( o, boundName, up );
 }
 
-
-
-bool IsLink( const Field * field )
-{
-	if ( field->type == Field::LINK ) {
-		return true;
-	}
-
-	if ( field->type == Field::INHERITED ) {
-		if ( ( ( InheritedField* )field )->parentField->type == Field::LINK ) {
-			return true;
-		}
-	}
-
-	return false;
-}
-bool IsText( const Field * field ) {
-	if ( field->type == Field::TEXT ) {
-		return true;
-	}
-
-	if ( field->type == Field::INHERITED ) {
-		if ( ( ( InheritedField* )field )->parentField->type == Field::TEXT ) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 /** Returns empty string on some error.*/
 std::string PrintType( Messenger& messenger, const Field* field )
 {
@@ -172,26 +129,6 @@ std::string PrintType( Messenger& messenger, const Field* field )
 	return std::string();
 }
 
-string print_string( const string & s ) {
-    std::string result = "\"";
-    //escape:
-    for ( size_t i = 0; i < s.size(); ++i )
-    {
-        switch ( s[ i ] ) {
-            case '"':
-                result.push_back( '\\' );
-                break;
-
-            case '\n':
-                result.append( "\\n" );
-                continue;
-        }
-
-        result.push_back( s[ i ] );
-    }
-    result.push_back( '"' );
-    return result;
-}
 std::string PrintData( Messenger& messenger, const FieldData* fieldData )
 {
 	switch ( fieldData->field->type ) {
@@ -258,55 +195,6 @@ std::string PrintData( Messenger& messenger, const FieldData* fieldData )
 	}
 
 	return std::string();
-}
-
-/** Prints simple or multiline commentary with specified indention.*/
-std::string PrintCommentary( const std::string& indention, const std::string& commentary )
-{
-	std::string result;
-	
-	result.append( indention );
-	result.append( "/** " );
-				
-	bool multiline = false;
-	for ( size_t i = 0; i < commentary.size(); ++i ) {
-		if ( commentary[ i ] == '\n' ) {
-			multiline = true;
-			break;
-		}
-	}
-
-	if ( multiline ) {
-		result.append( "\n" );
-		result.append( indention );
-
-		bool lastIsEscape = false;
-		for ( size_t i = 0; i < commentary.size(); ++i ) {
-			result.push_back( commentary[ i ] );
-
-			if ( commentary[ i ] == '\n' ) {
-				result.append( indention );
-
-				lastIsEscape = true;
-			}
-			else {
-				lastIsEscape = false;
-			}
-		}
-		if ( lastIsEscape == false ) {
-			result.append( "\n" );
-		}
-
-		result.append( indention );
-	}
-	else {
-		result.append( commentary );
-		result.append( " " );
-	}
-
-	result.append( "*/\n" );
-
-	return result;
 }
 
 void CloseSteppedFunction( std::ofstream & file, const int group, const auto name ) {
@@ -378,57 +266,6 @@ void PrintResolvingFunction(
 } //namespace TS
 using namespace TS;
 
-bool parent_has_field( const Table * table, const Field * field ) {
-    if ( ! table->parent ) {
-        return false;
-    }
-    for ( const Field * pf : table->parent->fields ) {
-        if ( pf->name == field->name ) {
-            return true;
-        }
-    }
-    return parent_has_field( table->parent, field );
-}
-
-void place_fields(
-    const Table * table,
-    vector< const Field * > & target
-) {
-    if ( table->parent ) {
-        place_fields( table->parent, target );
-    }
-    for ( const Field * field : table->fields ) {
-        if ( field->type == Field::INHERITED ) {
-            continue;
-        }
-        target.push_back( field );
-    }
-}
-/** Orders table's fields by inheritance, where root has precedence.*/
-auto order_inheritance_wise( const AST & ast ) {
-    map<
-        const Table *,
-        vector< const Field * >
-    > ordered;
-
-    for ( const Table * table : ast.tables ) {
-        place_fields( table, ordered[ table ] );
-    }
-
-    return ordered;
-}
-int global_field_index(
-    const Field * field,
-    const vector< const Field * > & ordered
-) {
-    for ( int i = 0; i < (int)ordered.size(); ++ i ) {
-        if ( ordered[ i ]->name == field->name ) {
-            return i;
-        }
-    }
-    return -1;
-}
-
 void TS_Target::LinkBeingConnected( std::ofstream &file ) {
 	++_someLinkIndex;
 	if ( _someLinkIndex % LINKS_PER_STEP == 0 ) {
@@ -445,28 +282,6 @@ void TS_Target::LinkBeingConnected( std::ofstream &file ) {
 	}
 }
 
-auto cache_strings( const AST & ast, Messenger & messenger ) {
-    map< string, int32_t > c;
-
-    for ( const Table * t : ast.tables ) {
-        for ( const auto & row : t->matrix ) {
-            for ( const FieldData * data : row ) {
-                if ( IsText( data->field ) ) {
-                    c[ PrintData( messenger, data ) ] = 0;
-                }
-            }
-        }
-    }
-
-    size_t i = 0;
-    for ( auto & text : c ) {
-        text.second = i;
-        ++ i;
-    }
-
-    return c;
-}
-
 
 bool TS_Target::Generate(
     const AST& ast,
@@ -474,7 +289,13 @@ bool TS_Target::Generate(
     const boost::property_tree::ptree& config
 ) {
     const auto inheritance_ordered = order_inheritance_wise( ast );
-    const auto strings_cache = cache_strings( ast, messenger );
+    const auto strings_cache = cache_strings(
+        ast,
+        messenger,
+        [&]( auto messenger, auto data ) {
+            return PrintData( messenger, data );
+        }
+    );
 
 	targetFolder = config.get< std::string >( "ts_target_folder", "./ts/code/design" );
 	//get rid of last folder separator:
@@ -488,23 +309,14 @@ bool TS_Target::Generate(
 	boost::filesystem::create_directories( targetFolder );
 	boost::filesystem::create_directory( targetFolder + "/infos" );
 
-	//make class names:
-	std::map< const Table *, std::string > classNames;
-	for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
-	{
-		Table* table = ast.tables[ tableIndex ];
-		std::string className = table->lowercaseName;
-		std::transform( className.begin(), ++( className.begin() ), className.begin(), ::toupper );
-		className.append( postfix );
-		classNames[ table ] = className;
-	}
+	const auto classNames = make_class_names( ast, postfix );
 
 	//generate classes:
 	for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
 	{
 		Table* table = ast.tables[ tableIndex ];
 
-		std::string fileName = str( boost::format( "%s/infos/%s.ts" ) % targetFolder % classNames[ table ] );
+		std::string fileName = str( boost::format( "%s/infos/%s.ts" ) % targetFolder % classNames.at( table ) );
 		std::ofstream file( fileName, std::ios_base::out );
 		if ( file.fail() ) {
 			messenger << ( boost::format( "E: TS: file \"%s\" was NOT opened.\n" ) % fileName );
@@ -520,7 +332,7 @@ bool TS_Target::Generate(
             obligatory_imports( file, true );
 			file << "\n";
             if ( table->parent ) {
-                import( file, classNames[ table->parent ] );
+                import( file, classNames.at( table->parent ) );
             }
 
 			file << "\n";
@@ -531,8 +343,8 @@ bool TS_Target::Generate(
 		{
 			file << PrintCommentary( "", table->commentary );
 
-			std::string parentName = table->parent == NULL ? rootName : classNames[ table->parent ];
-			file << str( boost::format( "export default class %s extends %s\n" ) % classNames[ table ] % parentName );
+			std::string parentName = table->parent == NULL ? rootName : classNames.at( table->parent );
+			file << str( boost::format( "export default class %s extends %s\n" ) % classNames.at( table ) % parentName );
 		}
 
 		//body open:
@@ -645,24 +457,11 @@ bool TS_Target::Generate(
 
 	//incapsulation:
 	{
-		//hash values generation to address tables:
-		std::map< std::string, uint32_t > hashes;
-		for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
-		{
-			Table* table = ast.tables[ tableIndex ];
-			
-            //std::hash< std::string > hash_function;
-            const uint32_t hash = fnv1aHash( table->lowercaseName );
-
-			//check that generated hash value doesn't collide with all already generated hash values:
-			for ( std::map< std::string, uint32_t >::iterator it = hashes.begin(); it != hashes.end(); ++it ) {
-				if ( hash == it->second ) {
-					messenger << ( boost::format( "E: TS: hash value generated from table's name \"%s\" collides with one generated from \"%s\". It happens once per ~100000 cases, so you're very \"lucky\" to face it. Change one of these table names' to something else to avoid this problem.\n" ) % table->lowercaseName % it->first );
-					return false;
-				}
-			}
-			hashes[ table->lowercaseName ] = hash;
-		}
+        bool ok;
+        const auto hashes = generate_hashes( ast, messenger, ok );
+        if ( ! ok ) {
+            return false;
+        }
 
 		std::string fileName = str( boost::format( "%s/%s.ts" ) % targetFolder % incapsulationName );
 		std::ofstream file( fileName.c_str() );
@@ -729,14 +528,14 @@ bool TS_Target::Generate(
                 case Table::MANY:
                 //for now there are no differences with MANY:
                 case Table::MORPH:
-                    file << " : " << classNames[ table ] << " [] = new Array< " << classNames[ table ] << " >( " << table->matrix.size() << " )\n";
+                    file << " : " << classNames.at( table ) << " [] = new Array< " << classNames.at( table ) << " >( " << table->matrix.size() << " )\n";
                     break;
 
                 case Table::PRECISE:
                 //for now there are no differences with PRECISE:
                 case Table::SINGLE:
                     //such tables must be created to be able to define links later:
-                    file << " : " << classNames[ table ] << " = new " << classNames[ table ] << ";\n";
+                    file << " : " << classNames.at( table ) << " = new " << classNames.at( table ) << ";\n";
                     break;
 
                 default:
@@ -860,7 +659,7 @@ bool TS_Target::Generate(
 
 				//create and add bound here if it wasn't yet for currently initing table:
 				if ( somethingOut == false && table->type == Table::MANY ) {
-					file << indention << indention << "this." << boundVariableName << " = new " << boundName << "( \"" << table->realName << "\", this." << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes[ table->lowercaseName ] ) << " );\n";
+					file << indention << indention << "this." << boundVariableName << " = new " << boundName << "( \"" << table->realName << "\", this." << table->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes.at( table->lowercaseName ) ) << " );\n";
 					file << indention << indention << "this." << allTablesName << ".push( this." << boundVariableName << " );\n";
 				}
 
@@ -936,7 +735,7 @@ bool TS_Target::Generate(
 
 						Link* link = ( Link* ) ( table->matrix[ 0 ][ fieldIndex ] );
 
-						file << indention << indention << classNames[ table ] << "." << field->name;
+						file << indention << indention << classNames.at( table ) << "." << field->name;
 						if ( link->links.empty() ) {
 							file << " = this._emptyLink;\n";
 						}

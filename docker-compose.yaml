@@ -5,6 +5,6 @@ services:
     tty: true
     command: tail -F /dev/null
     volumes:
-      - ./:/home/docker/app
+      - ./:/root/app
     
     

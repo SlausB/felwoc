@@ -5,6 +5,11 @@
 /xls2xj
 /output
 
-/as3
-/ts
+/out
+
+/test/haxe/Source/design
+/test/haxe/Assets/xls2xj.bin
+
+/test/haxe/Export
+
 
