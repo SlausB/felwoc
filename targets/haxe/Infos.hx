@@ -96,7 +96,7 @@ private Loader {
     private var _progress : Function;
     
     /** There are really much of such: let's cache it.*/
-    private final _emptyLink : Link = new Link( new Vector< Count >( 0 ) );
+    private final _e : Link = new Link( new Vector< Count >( 0 ) );
 	
 	/** Strings cache to reuse frequently reappearing literals.*/
 	private final _c = new Vector< string >( {STRINGS} )
@@ -152,8 +152,36 @@ private Loader {
         _onDone = onDone;
         _progress = progress;
 
-        strings_to_load = FosUtils.ReadLEB128_u32( data );
+        strings_to_load = n();
         load_strings();
+    }
+
+    /** Read integer.*/
+    private function n() {
+        return FosUtils.ReadLEB128_u32( data );
+    }
+    /** Read real value.*/
+    private function f() {
+
+    }
+    /** Read string.*/
+    private function s() {
+        final length = n();
+        return data.readMultiByte( length, "utf-8" );
+    }
+    /** Read array of values (integers and floats).*/
+    private function a() {
+        final length = n();
+        final r = new Vector< length >;
+        for ( i in 0 ... length ) {
+            r[ i ] = f();
+        }
+        return r;
+    }
+    private function v( table : Info ) {
+        final r = Vector< Info >( 1 );
+        r[ 0 ] = table;
+        return r;
     }
 
     /** Lets browser to take a break (some systems might even kill the application if it's unresponsive for too long). */
@@ -170,13 +198,12 @@ private Loader {
         for ( i in 0 ... 1000 ) {
             //all strings loaded:
             if ( strings_loaded >= strings_to_load ) {
-                objects_to_load = FosUtils.ReadLEB128_u32( data );
+                objects_to_load = n();
                 load_objects();
                 return;
             }
             else {
-                final length = FosUtils.ReadLEB128_u32( data );
-                _c[ strings_loaded ] = data.readMultiByte( length, "utf-8" );
+                _c[ strings_loaded ] = s();
                 strings_loaded += 1;
             }
         }
@@ -192,14 +219,14 @@ private Loader {
                 loading_type += 1;
                 //all types loaded:
                 if ( loading_type >= counts.length ) {
-                    links_to_load = FosUtils.ReadLEB128_u32( data );
+                    links_to_load = n();
                     load_links();
                     return;
                 }
                 loaded_of_type = 0;
             }
             else {
-                load_type( FosUtils.ReadLEB128_u32( data ) );
+                load_type( n() );
                 loaded_of_type += 1;
                 objects_loaded += 1;
             }
@@ -218,15 +245,19 @@ private Loader {
                 onLoad();
                 return;
             }
-            final source_type = FosUtils.ReadLEB128_u32( data );
-            final source_id = FosUtils.ReadLEB128_u32( data );
-            final field_type = FosUtils.ReadLEB128_u32( data );
-            final count = FosUtils.ReadLEB128_u32( data );
+            final source_type = n();
+            final source_id = n();
+            final field_type = n();
+            final count = n();
             final link = new Link( new Vector< Count >( count ) );
             for ( c in 0 ... count ) {
-                final target_type = FosUtils.ReadLEB128_u32( data );
-                final target_id = FosUtils.ReadLEB128_u32( data );
-                link.links[ c ] = infos.FindLinkTarget( infos.__all[ target_type ], target_id );
+                final target_type = n();
+                final target_id = n();
+                final quantity = n();
+                link.links[ c ] = new Count(
+                    infos.FindLinkTarget( infos.__all[ target_type ], target_id ),
+                    quantity
+                );
             }
             link_type(
                 infos.FindLinkTarget( infos.__all[ source_type ], source_id ),

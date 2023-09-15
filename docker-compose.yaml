@@ -6,5 +6,8 @@ services:
     command: tail -F /dev/null
     volumes:
       - ./:/root/app
+    # to allow vscode connect to gdb:
+    cap_add:
+      - SYS_PTRACE
     
     

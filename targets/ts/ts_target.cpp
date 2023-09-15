@@ -804,7 +804,11 @@ bool TS_Target::Generate(
 						}
 						else {
 							file << " = new " << linkName << "( [ ";
-							for ( std::vector< Count >::const_iterator count = link->links.begin(); count != link->links.end(); ++count ) {
+							for (
+                                std::vector< Count >::const_iterator count = link->links.begin();
+                                count != link->links.end();
+                                ++ count
+                            ) {
 								if ( count != link->links.begin() ) {
 									file << ", ";
 								}

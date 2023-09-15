@@ -157,6 +157,11 @@ void write_LEB128( auto & buffer, uint32_t message ) {
 	while ( message != 0 );
 }
 
+void write_string( auto & f, const string & s ) {
+    write_LEB128( f, s.size() );
+    f.write( s.c_str(), s.size() );
+}
+
 template< typename T = bool >
 auto generate_hashes(
     const AST & ast,
@@ -201,6 +206,7 @@ auto make_class_names( const AST & ast, const auto postfix ) {
 }
 
 template< typename T = bool >
+/** Tables that something can link AGAINST.*/
 auto linkable_tables( const AST & ast ) {
     vector< Table * > linkable;
     for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++ tableIndex )
@@ -210,6 +216,8 @@ auto linkable_tables( const AST & ast ) {
         {
             case Table::MANY:
             case Table::MORPH:
+            //these tables also can have links against something else (but nothing can link this table):
+            case Table::PRECISE:
                 linkable.push_back( table );
                 break;
         }

@@ -17,13 +17,13 @@ public:
 	Count(Table* table, const int id, const int count);
 	
 	
-	/** To item (spell it row) of which table this link is.*/
+	/** Link target table.*/
 	Table* table;
 	
 	/** Id of a linked row within it's table.*/
 	int id;
 	
-	/** "count" attribute of a link. If link don't have count attribute then 1.*/
+	/** "count" attribute of a link. If link doesn't have count attribute then 1.*/
 	int count;
 };
 

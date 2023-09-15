@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include <iostream>
 
 using namespace std;
 
@@ -94,7 +95,7 @@ std::string PrintType( Messenger& messenger, const Field* field )
             return "Int";
 
         case Field::LINK:
-            return rootName;
+            return linkName;
 
         case Field::BOOL:
             return "Bool";
@@ -177,6 +178,118 @@ std::string PrintData( Messenger& messenger, const FieldData* fieldData )
 
 	return string();
 }
+/** Write data reading and initialization code.*/
+std::string init_data( Messenger& messenger, const Field * field )
+{
+	switch ( field->type ) {
+        case Field::INHERITED: {
+            InheritedField * inherited = ( InheritedField * ) field;
+            return init_data( messenger, inherited->parentField ); }
+            break;
+
+        case Field::SERVICE: {
+            ServiceField* serviceField = ( ServiceField* ) field;
+            switch ( serviceField->serviceType )
+            {
+                case ServiceField::ID: {
+                    return "n()";
+
+                default:
+                    messenger.error( boost::format( "E: Haxe: PROGRAM ERROR: init_data(): service type %d is undefined. Refer to software supplier.\n" ) % serviceField->serviceType );
+            } } }
+            break;
+
+        case Field::TEXT:
+            return "_c[ n() ]";
+
+        case Field::FLOAT:
+            return "f()";
+
+        case Field::INT:
+            return "n()";
+
+        case Field::LINK:
+            //links will be connected later:
+            return "_e";
+
+        case Field::BOOL:
+            return "Bool( n() )";
+
+        case Field::ARRAY:
+            return "a()";
+        
+        default:
+            messenger.error( boost::format( "E: Haxe: PROGRAM ERROR: init_data(): type = %d is undefined. Returning empty string. Refer to software supplier.\n" ) % field->type );
+	}
+
+	return string();
+}
+/** Write actual data to binary output file.*/
+void write_data(
+    ofstream & f,
+    Messenger& messenger,
+    const FieldData* fieldData,
+    const auto & strings_cache
+) {
+	switch ( fieldData->field->type ) {
+        case Field::INHERITED: {
+            Inherited* inherited = ( Inherited* ) fieldData;
+            write_data( f, messenger, inherited->fieldData, strings_cache );
+            break; }
+
+        case Field::SERVICE: {
+            Service* service = ( Service* ) fieldData;
+            ServiceField* serviceField = ( ServiceField* ) fieldData->field;
+            switch ( serviceField->serviceType )
+            {
+                case ServiceField::ID: {
+                    Int* asInt = ( Int* ) service->fieldData;
+                    write_LEB128( f, asInt->value ); }
+                    break;
+
+                default:
+                    messenger.error( boost::format( "E: Haxe: PROGRAM ERROR: init_data(): service type %d is undefined. Refer to software supplier.\n" ) % serviceField->serviceType );
+                    break;
+            } }
+            break;
+
+        case Field::TEXT: {
+            Text* text = ( Text* ) fieldData;
+            write_LEB128( f, strings_cache.at( print_string( text->text ) ) ); }
+            break;
+
+        case Field::FLOAT: {
+            Float* asFloat = ( Float* ) fieldData;
+            write_string( f, to_string( asFloat->value ) ); }
+            break;
+
+        case Field::INT: {
+            Int* asInt = ( Int* ) fieldData;
+            write_LEB128( f, asInt->value ); }
+            break;
+
+        case Field::LINK:
+            //links will be connected later:
+            break;
+
+        case Field::BOOL: {
+            Bool* asBool = (Bool*)fieldData;
+            write_LEB128( f, int( asBool->value ) ); }
+            break;
+
+        case Field::ARRAY: {
+            Array* asArray = (Array*)fieldData;
+            write_LEB128( f, asArray->values.size() );
+            for ( size_t i = 0; i < asArray->values.size(); ++i ) {
+                write_string( f, to_string( asArray->values[ i ] ) );
+            } }
+            break;
+        
+        default:
+            messenger.error( boost::format( "E: Haxe: PROGRAM ERROR: init_data(): type = %d is undefined. Returning empty string. Refer to software supplier.\n" ) % fieldData->field->type );
+            break;
+	}
+}
 
 void pass_over(
     const auto & file_name,
@@ -246,8 +359,7 @@ bool Haxe_Target::Generate(
         }
         const auto e = s->first;
 
-        write_LEB128( bin, e.size() );
-        bin.write( e.c_str(), e.size() );
+        write_string( bin, e );
     }
 
 	const auto classNames = make_class_names( ast, postfix );
@@ -345,16 +457,12 @@ bool Haxe_Target::Generate(
 		if ( table->type != Table::PRECISE && table->type != Table::SINGLE ) {
 			//declaration:
 			file << indention << "/** All (including inherited) fields (excluding links) are defined here. To let define classes only within it's classes without inherited constructors used undefined arguments.*/\n";
-			file << indention << "constructor(\n";
+			file << indention << "public function new(\n";
 
             //first param is always tabBound:
             file << indention << indention << tabBound << " : " << boundName << ",\n";
             //rest params:
 			for ( const Field * field : inheritance_ordered.at( table ) ) {
-				if ( IsLink( field ) ) {
-					continue;
-				}
-	
 				file << indention << indention << field->name << " : " << PrintType( messenger, field ) << ",\n";
 			}
             //close function args and open it's definition block:
@@ -379,14 +487,7 @@ bool Haxe_Target::Generate(
                 if ( field->type == Field::INHERITED ) {
                     continue;
                 }
-                //muting TypeScript because we promise to assign values later on:
-				if ( IsLink( field ) ) {
-                    file << indention << indention << "//@ts-ignore\n";
-                    file << indention << indention << "this." << field->name << " = undefined" << "\n";
-				}
-                else {
-				    file << indention << indention << "this." << field->name << " = " << field->name << "\n";
-                }
+                file << indention << indention << "this." << field->name << " = " << field->name << ";\n";
 			}
 			file << indention << "}\n";
 		}
@@ -468,22 +569,171 @@ bool Haxe_Target::Generate(
         stringstream bounds;
         for ( size_t i = 0; i < linkable.size(); ++ i ) {
             const auto & t = linkable[ i ];
-            bounds << indention << indention << "__all[ " << i << " ] = b( " << print_string( t->realName ) << ", " << t->lowercaseName << ", " << str( boost::format( "0x%X" ) % hashes.at( t->lowercaseName ) ) << " );\n";
+            bounds << indention << indention << "__all[ " << i << " ] = b( " << print_string( t->realName ) << ", ";
+            if ( t->type == Table::PRECISE ) {
+                bounds << "v( " << t->lowercaseName << " )";
+            }
+            else {
+                bounds << t->lowercaseName;
+            }
+            bounds << ", " << str( boost::format( "0x%X" ) % hashes.at( t->lowercaseName ) ) << " );\n";
         }
         replace( infos_text, "{INIT_BOUNDS}", bounds.str() );
 
         replace( infos_text, "{STRINGS}", to_string( strings_cache.size() ) );
 
-        stringstream load_types;
-        load_types << indention << indention << "switch ( type ) {\n";
-        for ( size_t i = 0; i < linkable.size(); ++ i ) {
-            const auto & t = linkable[ i ];
-            load_types << indention << indention << indention << "case " << i << ":\n";
-            load_types << indention << indention << indention << indention << t->lowercaseName << "[ index ] = new " << t->realName << "();\n";
-            load_types << indention << indention << indention << indention << "break;\n";
+        //objects spawning:
+        {
+            stringstream load_types;
+            load_types << indention << indention << "switch ( type ) {\n";
+            for ( size_t i = 0; i < linkable.size(); ++ i ) {
+                const auto & table = linkable[ i ];
+                //tables PRECISE initialized at construction when declared as fields:
+                if ( table->type == Table::PRECISE ) {
+                    continue;
+                }
+
+                //abstract initialization:
+                load_types << indention << indention << indention << "case " << i << ":\n";
+                load_types << indention << indention << indention << indention << table->lowercaseName << "[ index ] = new " << table->realName << "( ";
+                for ( const auto & field : inheritance_ordered.at( table ) ) {
+                    load_types << init_data( messenger, field ) << ", ";
+                }
+                load_types << ");\n";
+                load_types << indention << indention << indention << indention << "break;\n";
+                
+                //binary data:
+                for ( const auto & row : table->matrix ) {
+                    vector< FieldData * > inh_reordered = row;
+                    sort(
+                        inh_reordered.begin(),
+                        inh_reordered.end(),
+                        [&]( const FieldData * a, const FieldData * b ) {
+                            return
+                                global_field_index( a->field, inheritance_ordered.at( table ) )
+                                <
+                                global_field_index( b->field, inheritance_ordered.at( table ) )
+                            ;
+                        }
+                    );
+
+                    for ( const FieldData * data : inh_reordered ) {
+                        write_data( bin, messenger, data, strings_cache );
+                    }
+                }
+            }
+            load_types << indention << indention << "}\n";
+            replace( infos_text, "{LOAD_TYPES}", load_types.str() );
         }
-        load_types << indention << indention << "}\n";
-        replace( infos_text, "{LOAD_TYPES}", load_types.str() );
+
+        //links connections:
+        {
+            //fields initialization:
+            stringstream link_type;
+            link_type << indention << indention << "switch ( type ) {\n";
+            for ( size_t i = 0; i < linkable.size(); ++ i ) {
+                const auto & table = linkable[ i ];
+
+                stringstream type_case;
+                type_case << indention << indention << indention << "case " << i << ":\n";
+
+                type_case << indention << indention << indention << indention << "switch ( field ) {\n";
+                int32_t order = 0;
+                for ( const auto & field : inheritance_ordered.at( table ) ) {
+                    if ( IsLink( field ) ) {
+                        type_case << indention << indention << indention << indention << indention << "case " << order << ":\n";
+                        type_case << indention << indention << indention << indention << indention << indention << "cast( o, " << classNames.at( table ) << " )." << field->name << " = l;\n";
+                        type_case << indention << indention << indention << indention << indention << indention << "break;\n";
+                        order += 1;
+                    }
+                }
+                type_case << indention << indention << indention << indention << "}\n";
+                type_case << indention << indention << indention << indention << "break;\n";
+
+                if ( order > 0 ) {
+                    link_type << type_case.str();
+                }
+            }
+            link_type << indention << indention << "}\n";
+            replace( infos_text, "{LINK_TYPES}", link_type.str() );
+
+            //binary data:
+            int32_t links_count = 0;
+            stringstream links_data;
+
+            const auto link_field_index = [&]( const Table * table, Field * link ) {
+                const auto & io = inheritance_ordered.at( table );
+                int32_t result = 0;
+                for ( size_t i = 0; i < io.size(); ++ i ) {
+                    const auto & maybe_link = io.at( i );
+                    if ( ! IsLink( io.at( i ) ) ) {
+                        continue;
+                    }
+                    if ( maybe_link == link ) {
+                        return result;
+                    }
+                    result += 1;
+                }
+                return -1;
+            };
+
+			for ( const auto & table : ast.tables ) {
+                for ( size_t fieldIndex = 0; fieldIndex < table->fields.size(); ++fieldIndex ) {
+                    Field* field = table->fields[ fieldIndex ];
+					if ( IsLink( field ) == false ) {
+						continue;
+					}
+					int rowIndex = 0;
+					for (
+                        std::vector< std::vector< FieldData* > >::const_iterator row = table->matrix.begin();
+                        row != table->matrix.end(); ++row,
+                        ++ rowIndex
+                    ) {
+                        for ( const FieldData * data : * row ) {
+                            if ( ! IsLink( data->field ) ) {
+                                continue;
+                            }
+
+                            const Link* link;
+                            if ( field->type == Field::LINK ) {
+                                link = ( Link* ) ( row->at( fieldIndex ) );
+                            }
+                            else if ( field->type == Field::INHERITED ) {
+                                link = ( Link* ) ( ( ( Inherited* ) ( row->at( fieldIndex ) ) )->fieldData );
+                            }
+                            else
+                            {
+                                messenger.error( boost::format( "E: Haxe: PROGRAM ERROR: linking: field's type = %d is undefined. Refer to software supplier.\n" ) % field->type );
+                                return false;
+                            }
+
+                            if ( link->links.empty() ) {
+                                continue;
+                            }
+
+                            write_LEB128( links_data, type_index( table ) );
+                            if ( table->type == Table::PRECISE ) {
+                                write_LEB128( links_data, 0 );
+                            }
+                            else {
+                                write_LEB128( links_data, rowIndex );
+                            }
+                            write_LEB128( links_data, link_field_index( table, field ) );
+                            write_LEB128( links_data, link->links.size() );
+                            for ( const auto & count : link->links ) {
+                                write_LEB128( links_data, type_index( count.table ) );
+                                write_LEB128( links_data, count.id );
+                                write_LEB128( links_data, count.count );
+                            }
+                        }
+                    }
+                }
+            }
+
+            write_LEB128( bin, links_count );
+            const auto s = links_data.str();
+            bin.write( s.c_str(), s.size() );
+        }
         
         //writing down:
         std::string fileName = str( boost::format( "%s/Infos.hx" ) % targetFolder );
