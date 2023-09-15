@@ -76,6 +76,7 @@ cc_library(
 
         "targets/haxe/haxe_target.h",
         "targets/haxe/Infos.hx",
+        "targets/haxe/Info.hx",
         "targets/haxe/Bound.hx",
         "targets/haxe/Count.hx",
         "targets/haxe/Link.hx",

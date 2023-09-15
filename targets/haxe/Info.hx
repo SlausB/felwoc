@@ -16,7 +16,7 @@ class Info
 
 	public function new( __tabBound : Bound )
 	{
-		this.__tabBound = __tabBound
+		this.__tabBound = __tabBound;
 	}
 }
 )====="

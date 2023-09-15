@@ -11,12 +11,12 @@ import openfl.Vector;
 class Link
 {
 	/** All linked objects. Defined in constructor.*/
-	public var links : Vector.< Count >;
+	public var links : Vector< Count >;
 
 	/** All counts at once.*/
-	public function new( links : Vector.< Count > )
+	public function new( links : Vector< Count > )
 	{
-		this.links = links
+		this.links = links;
 	}
 }
 )====="

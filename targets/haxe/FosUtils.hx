@@ -1,4 +1,4 @@
-R"=====(package fos;
+R"=====(package design;
 
 import openfl.utils.ByteArray;
 import openfl.utils.Endian;
@@ -8,7 +8,7 @@ import openfl.utils.IDataOutput;
 class FosUtils
 {
     
-    public static function WriteString(output : IDataOutput, string : String) : Void
+    public static function WriteString( output : IDataOutput, string : String ) : Void
     {
         var tmp : ByteArray = new ByteArray();
         tmp.endian = Endian.LITTLE_ENDIAN;
@@ -17,13 +17,13 @@ class FosUtils
         output.writeBytes(tmp);
     }
     
-    public static function ReadString(input : IDataInput) : String
+    public static function ReadString( input : IDataInput ) : String
     {
-        var length : Int = cast((input), ReadLEB128_u32);
-        return input.readUTFBytes(length);
+        final length = ReadLEB128_u32( input );
+        return input.readUTFBytes( length );
     }
     
-    public static function ReadLEB128_32(input : IDataInput) : Int
+    public static function ReadLEB128_32( input : IDataInput ) : Int
     {
         var result : Int = 0;
         var shift : Int = 0;
@@ -36,7 +36,7 @@ class FosUtils
             }
             var byte : Int = input.readByte();
             
-            result = result | Int( (byte & 0x7F) << shift );
+            result = result | cast( ( byte & 0x7F ) << shift, Int );
             shift += 7;
             /* sign bit of byte is second high order bit (0x40) */
             if ((byte & 0x80) == 0)
@@ -45,7 +45,7 @@ class FosUtils
             }
         }
         //if left something to fill for negative value:
-        if ((shift < size) && ((result & Int( 1 << (shift - 1) )) != 0)) {
+        if ( ( shift < size ) && ( ( result & cast( 1 << (shift - 1), Int ) ) != 0)) {
             result = result | -(1 << shift);
         }
         
@@ -64,7 +64,7 @@ class FosUtils
             }
             var byte : Int = input.readByte();
             
-            result = result | Int( (byte & 0x7F) << shift );
+            result = result | cast( (byte & 0x7F) << shift, Int );
             if ((byte & 0x80) == 0)
             {
                 break;
@@ -127,7 +127,7 @@ class FosUtils
     public static function ReadAMF(input : IDataInput) : Dynamic
     {
         //just skip length specifier - AS3 will read object by it's own:
-        cast((input), ReadLEB128_u32);
+        ReadLEB128_u32( input );
         return input.readObject();
     }
     

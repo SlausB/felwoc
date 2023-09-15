@@ -21,6 +21,9 @@ string infos_text =
 #include "./Infos.hx"
 "";
 
+string info_single_text =
+#include "./Info.hx"
+"";
 string bound_text =
 #include "./Bound.hx"
 "";
@@ -63,6 +66,7 @@ void obligatory_imports(
     import( o, linkName );
     import( o, rootName );
     import( o, boundName );
+    o << "import openfl.Vector;\n";
 }
 
 /** Returns empty string on some error.*/
@@ -101,7 +105,7 @@ std::string PrintType( Messenger& messenger, const Field* field )
             return "Bool";
 
         case Field::ARRAY:
-            return "Array< Float >";
+            return "Vector< Float >";
 
         
         default:
@@ -213,7 +217,7 @@ std::string init_data( Messenger& messenger, const Field * field )
             return "_e";
 
         case Field::BOOL:
-            return "Bool( n() )";
+            return "bool( n() )";
 
         case Field::ARRAY:
             return "a()";
@@ -381,11 +385,13 @@ bool Haxe_Target::Generate(
 			//intro:
 			file << explanation;
 
+            file << "package design.infos;\n";
+
 			//imports:
             obligatory_imports( file );
 			file << "\n";
             if ( table->parent ) {
-                import( file, classNames.at( table->parent ) );
+                file << "import design.infos." << classNames.at( table->parent ) << ";\n";
             }
 
 			file << "\n";
@@ -397,7 +403,7 @@ bool Haxe_Target::Generate(
 			file << PrintCommentary( "", table->commentary );
 
 			std::string parentName = table->parent == NULL ? rootName : classNames.at( table->parent );
-			file << str( boost::format( "export default class %s extends %s\n" ) % classNames.at( table ) % parentName );
+			file << str( boost::format( "class %s extends %s\n" ) % classNames.at( table ) % parentName );
 		}
 
 		//body open:
@@ -423,9 +429,10 @@ bool Haxe_Target::Generate(
 			}
 			file << indention << "public ";
 			//links within tables of type "precise" will be defined the same way as all other links:
-			if ( table->type == Table::PRECISE ) {
+			if ( table->type == Table::PRECISE && ! IsLink( field ) ) {
 				file << "static ";
 			}
+            file << "var ";
 			file << field->name << " : ";
 			if ( IsLink( field ) ) {
 				file << linkName;
@@ -448,8 +455,8 @@ bool Haxe_Target::Generate(
 
         //muting inherited constructor:
         if ( table->type == Table::PRECISE ) {
-            file << indention << "constructor() {\n";
-            file << indention << indention << "super( null )\n";
+            file << indention << "public function new() {\n";
+            file << indention << indention << "super( cast( null ) );\n";
             file << indention << "}\n";
         }
 
@@ -475,13 +482,10 @@ bool Haxe_Target::Generate(
 			file << indention << indention << "super( " << tabBound << ", ";
             if ( table->parent ) {
                 for ( const Field * field : inheritance_ordered.at( table->parent ) ) {
-                    if ( IsLink( field ) ) {
-                        continue;
-                    }
                     file << field->name << ", ";
                 }
             }
-            file << ")\n";
+            file << ");\n";
 
 			for ( Field * field : table->fields ) {
                 if ( field->type == Field::INHERITED ) {
@@ -510,7 +514,7 @@ bool Haxe_Target::Generate(
             //infos import:
             stringstream infos;
             for ( const auto it : classNames ) {
-                infos << "import design." << it.second << ";\n";
+                infos << "import design.infos." << it.second << ";\n";
             }
             replace( infos_text, "{INFOS}", infos.str() );
         }
@@ -574,9 +578,19 @@ bool Haxe_Target::Generate(
                 bounds << "v( " << t->lowercaseName << " )";
             }
             else {
-                bounds << t->lowercaseName;
+                bounds << "cast( " << t->lowercaseName << " )";
             }
-            bounds << ", " << str( boost::format( "0x%X" ) % hashes.at( t->lowercaseName ) ) << " );\n";
+            bounds << ", " << str( boost::format( "0x%X" ) % hashes.at( t->lowercaseName ) );
+
+            bounds << ", ";
+            if ( t->type == Table::PRECISE ) {
+                bounds << "true";
+            }
+            else {
+                bounds << "false";
+            }
+            
+            bounds << " );\n";
         }
         replace( infos_text, "{INIT_BOUNDS}", bounds.str() );
 
@@ -595,12 +609,11 @@ bool Haxe_Target::Generate(
 
                 //abstract initialization:
                 load_types << indention << indention << indention << "case " << i << ":\n";
-                load_types << indention << indention << indention << indention << table->lowercaseName << "[ index ] = new " << table->realName << "( r( " << i << " ), ";
+                load_types << indention << indention << indention << indention << "infos." << table->lowercaseName << "[ index ] = new " << classNames.at( table ) << "( r( " << i << " ), ";
                 for ( const auto & field : inheritance_ordered.at( table ) ) {
                     load_types << init_data( messenger, field ) << ", ";
                 }
                 load_types << ");\n";
-                load_types << indention << indention << indention << indention << "break;\n";
                 
                 //binary data:
                 for ( const auto & row : table->matrix ) {
@@ -643,12 +656,10 @@ bool Haxe_Target::Generate(
                     if ( IsLink( field ) ) {
                         type_case << indention << indention << indention << indention << indention << "case " << order << ":\n";
                         type_case << indention << indention << indention << indention << indention << indention << "cast( o, " << classNames.at( table ) << " )." << field->name << " = l;\n";
-                        type_case << indention << indention << indention << indention << indention << indention << "break;\n";
                         order += 1;
                     }
                 }
                 type_case << indention << indention << indention << indention << "}\n";
-                type_case << indention << indention << indention << indention << "break;\n";
 
                 if ( order > 0 ) {
                     link_type << type_case.str();
@@ -745,10 +756,11 @@ bool Haxe_Target::Generate(
         file << infos_text;
     }
     
-    pass_over( "Bound",    bound_text,    messenger );
-    pass_over( "Count",    count_text,    messenger );
-    pass_over( "Link",     link_text,     messenger );
-    pass_over( "FosUtils", fosutils_text, messenger );
+    pass_over( "Info",     info_single_text, messenger );
+    pass_over( "Bound",    bound_text,       messenger );
+    pass_over( "Count",    count_text,       messenger );
+    pass_over( "Link",     link_text,        messenger );
+    pass_over( "FosUtils", fosutils_text,    messenger );
 
 
 	messenger << ( boost::format( "I: Haxe code successfully generated.\n" ) );

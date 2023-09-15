@@ -58,6 +58,7 @@ RUN haxelib dev lime lime && \
     haxelib install hxp && \
     haxelib install hxcpp && \
     haxelib install openfl && \
+    haxelib install utest && \
     haxelib run lime rebuild linux
 
 WORKDIR /root/app

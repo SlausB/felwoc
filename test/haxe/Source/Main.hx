@@ -1,27 +1,10 @@
-package;
+import utest.Runner;
+import utest.ui.Report;
 
-import openfl.display.Sprite;
-import openfl.utils.Assets;
+import TestSample;
 
-import design.Infos;
-
-class Main extends Sprite
-{
-	public function new()
-	{
-		super();
-
-        final data = Assets.getBytes( "assets/xls2xj.bin" );
-        trace( "Data length: ", data.length );
-        
-        final infos = new Infos(
-            data,
-            ( progress : Float ) -> {
-                trace( "Progress: ", progress);
-            },
-            () -> {
-                trace( 'Done.' );
-            },
-        );
-	}
+class Main {
+    public static function main() {
+        utest.UTest.run( [ new TestSample() ] );
+    }
 }

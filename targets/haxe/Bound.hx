@@ -3,6 +3,8 @@ Bugs, issues or suggestions can be sent to SlavMFM@gmail.com */
 
 package design;
 
+import openfl.Vector;
+
 import design.Info;
 
 
@@ -12,16 +14,19 @@ class Bound
 	/** Table's name without any modifications. Defined within constructor.*/
 	public var tableName : String;
 	/** Data objects of this table. Vector of objects inherited at least from "Info". Defined within constructor.*/
-	public var objects : Array< Info >;
+	public var objects : Vector< Info >;
 	/** Hash value from table's lowercase name to differentiate objects of this table from any other objects.*/
-	public hash : Int;
+	public var hash : Int;
+    /** Stores single "object" which is the whole table of type PRECISE.*/
+    public var precise : Bool;
 	
 	/** Both name and array at construction.*/
-	public function new( tableName : String, objects : Array< Info >, hash : Int )
+	public function new( tableName : String, objects : Vector< Info >, hash : Int, precise : Bool )
 	{
 		this.tableName = tableName;
 		this.objects = objects;
 		this.hash = hash;
+        this.precise = precise;
 	}
 }
 )====="

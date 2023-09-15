@@ -3,23 +3,22 @@ Bugs, issues or suggestions can be sent to SlavMFM@gmail.com */
 
 package design;
 
-import Info from "./Info"
+import design.Info;
 
 
 /** Link to single object which holds object's count along with object's pointer.*/
-export default class Count
+class Count
 {
 	/** Linked object. Defined within constructor.*/
-	public object : Info
+	public var object : Info;
 	
 	/** Linked objects count. If count was not specified within XLS then 1. Interpretation depends on game logic.*/
-	public count : number
+	public var count : Float;
 	
 	/** Both pointer and count at construction.*/
-	constructor( object : Info, count : number )
-	{
-		this.object = object
-		this.count = count
+	public function new( object : Info, count : Float ) {
+		this.object = object;
+		this.count = count;
 	}
 }
 )====="

@@ -4,7 +4,6 @@ Bugs issues or suggestions can be sent to SlavMFM@gmail.com
 
 package design;
 
-import com.junkbyte.console.Cc;
 import haxe.Timer;
 import openfl.net.URLLoader;
 import openfl.net.URLRequest;
@@ -18,7 +17,7 @@ import design.Link;
 import design.Info;
 import design.Bound;
 
-import fos.FosUtils;
+import design.FosUtils;
 
 {INFOS}
 
@@ -28,20 +27,22 @@ class Infos {
     /** Array of all arrays. Each element is of type Vector< Info > */
     public final __all = new Vector< Bound >( {BOUNDS} );
 
+    public static var on_error : ( msg : String ) -> Void = null;
+
     public function new(
         data : IDataInput,
-        onDone : Function,
-        progress : Function
+        onDone : () -> Void,
+        progress : ( p : Float ) -> Void = null
     ) {
 {INIT_BOUNDS}
         
-        new Loader( data, onDone, progress );
+        new Loader( this, data, onDone, progress );
     }
 	
 	/** Looks for link target.*/
-	public static function FindLinkTarget( where : Array< Info >, id : Int ) : Info {
-		for ( i => some in where ) {
-			if ( some.id == id ) {
+	public static function FindLinkTarget( where : Vector< Info >, id : Int ) : Info {
+		for ( some in where ) {
+			if ( Reflect.field( some, "id" ) == id ) {
 				return cast( some );
 			}
 		}
@@ -52,9 +53,11 @@ class Infos {
 	\param from Where to lookup for link.
 	\param index Place of obtaining link from (including) zero. NULL will be returned and error printed if index is out of range.
 	\param context Prefix for outputting error. Type something here to get understanding of where error occured when it will.*/
-	public static GetLink( from : Link, index : Int, context : String ) : Count {
+	public static function GetLink( from : Link, index : Int, context : String ) : Count {
 		if ( index >= from.links.length ) {
-			Cc.error( "E: " + context + ": requested link at index " + index + " but there are just " + from.links.length + " links. Returning undefined." );
+            if ( Infos.on_error != null ) {
+			    Infos.on_error( "E: " + context + ": requested link at index " + index + " but there are just " + from.links.length + " links. Returning undefined." );
+            }
 			return cast( null );
 		}
 		
@@ -65,12 +68,12 @@ class Infos {
 	\param hash Hash value from table's name when looking Info is described.
 	\param id Identificator within it's table.
 	\return Found Info or null if nothing was found.*/
-	public FindInfo( hash : Int, id : Int ) : Null< Info >
+	public function FindInfo( hash : Int, id : Int ) : Null< Info >
 	{
-		for ( i => bound in this.__all ) {
+		for ( bound in this.__all ) {
 			if ( hash == bound.hash ) {
-				for ( oi => info in bound.objects ) {
-					if ( id == info.id ) {
+				for ( info in bound.objects ) {
+					if ( id == Reflect.field( info, "id" ) ) {
 						return info;
 					}
 				}
@@ -80,26 +83,33 @@ class Infos {
 		}
 		return null;
 	}
+
+    /** To pretend that objects in tables of type PRECISE are plurals.*/
+    private function v( table : Info ) {
+        final r = new Vector< Info >( 1 );
+        r[ 0 ] = table;
+        return r;
+    }
 }
 
-private function b( tableName : String, count : Int, hash : Int ) {
-    return new Bound( tableName, new Vector< Info >( count ), hash );
+private function b( tableName : String, objects : Vector< Info >, hash : Int, precise : Bool ) {
+    return new Bound( tableName, objects, hash, precise );
 }
 
-private Loader {
+private class Loader {
     private var infos : Infos;
 
     /** Will be called when everything done.*/
-    private var _onDone : Function;
+    private var _onDone : ()->Void;
     
     /** Called to inform process completeness state from 0 to 1 if specified.*/
-    private var _progress : Function;
+    private var _progress : ( p : Float )->Void;
     
     /** There are really much of such: let's cache it.*/
     private final _e : Link = new Link( new Vector< Count >( 0 ) );
 	
 	/** Strings cache to reuse frequently reappearing literals.*/
-	private final _c = new Vector< string >( {STRINGS} )
+	private final _c = new Vector< String >( {STRINGS} );
 
     private var data : IDataInput;
 
@@ -119,20 +129,20 @@ private Loader {
 
     /** How much every specific part weights in terms of loading burden.*/
     private final load_weight = [ 2, 4, 2 ];
-    private final STRINGS_ORDER : Float = 1;
-    private final OBJECTS_ORDER : Float = 2;
-    private final LINKS_ORDER   : Float = 3;
+    private final STRINGS_ORDER : Int = 0;
+    private final OBJECTS_ORDER : Int = 1;
+    private final LINKS_ORDER   : Int = 2;
     private function report_progress( order : Int, part : Float ) {
-        if ( ! _progress ) {
+        if ( _progress == null ) {
             return;
         }
 
-        var sum : Number = 0;
+        var sum : Float = 0;
         for ( i in 0 ... load_weight.length ) {
             sum += load_weight[ i ];
         }
 
-        var loaded : Number = 0;
+        var loaded : Float = 0;
         for ( i in 0 ... order ) {
             loaded += load_weight[ i ];
         }
@@ -144,13 +154,20 @@ private Loader {
     public function new(
         infos : Infos,
         data : IDataInput,
-        onDone : Function,
-        progress : Function
+        onDone : () -> Void,
+        progress : ( p : Float ) -> Void
     ) {
         this.infos = infos;
         this.data = data;
         _onDone = onDone;
         _progress = progress;
+
+        objects_to_load = 0;
+        for ( bound in infos.__all ) {
+            if ( ! bound.precise ) {
+                objects_to_load += bound.objects.length;
+            }
+        }
 
         strings_to_load = n();
         load_strings();
@@ -162,7 +179,7 @@ private Loader {
     }
     /** Read real value.*/
     private function f() {
-
+        return Std.parseFloat( s () );
     }
     /** Read string.*/
     private function s() {
@@ -172,37 +189,33 @@ private Loader {
     /** Read array of values (integers and floats).*/
     private function a() {
         final length = n();
-        final r = new Vector< length >;
+        final r = new Vector< Float >( length );
         for ( i in 0 ... length ) {
             r[ i ] = f();
         }
         return r;
     }
-    /** To pretend that objects in tables of type PRECISE are plurals.*/
-    private function v( table : Info ) {
-        final r = Vector< Info >( 1 );
-        r[ 0 ] = table;
-        return r;
-    }
     private function r( i : Int ) {
         return infos.__all[ i ];
     }
+    private function bool( v : Int ) {
+        return v == 1;
+    }
 
-    /** Lets browser to take a break (some systems might even kill the application if it's unresponsive for too long). */
-    private function chill( cb : Function ) {
+    /** Lets browser take a break (some systems might even kill the application if it's unresponsive for too long). */
+    private function chill( cb : ()->Void ) {
         haxe.Timer.delay(
-            () => {
+            () -> {
                 cb();
             },
             1,
-        )
+        );
     }
 
     private function load_strings() {
         for ( i in 0 ... 1000 ) {
             //all strings loaded:
             if ( strings_loaded >= strings_to_load ) {
-                objects_to_load = n();
                 load_objects();
                 return;
             }
@@ -220,9 +233,15 @@ private Loader {
         for ( i in 0 ... 1000 ) {
             //all objects of current type successfully loaded:
             if ( loaded_of_type >= infos.__all[ loading_type ].objects.length ) {
-                loading_type += 1;
+                while (
+                    loading_type < infos.__all[ loading_type ].objects.length
+                    &&
+                    infos.__all[ loading_type ].precise
+                ) {
+                    loading_type += 1;
+                }
                 //all types loaded:
-                if ( loading_type >= counts.length ) {
+                if ( loading_type >= infos.__all[ loading_type ].objects.length ) {
                     links_to_load = n();
                     load_links();
                     return;
@@ -230,7 +249,7 @@ private Loader {
                 loaded_of_type = 0;
             }
             else {
-                load_type( n() );
+                load_type( loading_type, loaded_of_type );
                 loaded_of_type += 1;
                 objects_loaded += 1;
             }
@@ -246,7 +265,7 @@ private Loader {
     private function load_links() {
         for ( i in 0 ... 300 ) {
             if ( links_loaded >= links_to_load ) {
-                onLoad();
+                _onDone();
                 return;
             }
             final source_type = n();
@@ -259,12 +278,18 @@ private Loader {
                 final target_id = n();
                 final quantity = n();
                 link.links[ c ] = new Count(
-                    infos.FindLinkTarget( infos.__all[ target_type ], target_id ),
+                    Infos.FindLinkTarget(
+                        infos.__all[ target_type ].objects,
+                        target_id
+                    ),
                     quantity
                 );
             }
             link_type(
-                infos.FindLinkTarget( infos.__all[ source_type ], source_id ),
+                Infos.FindLinkTarget(
+                    infos.__all[ source_type ].objects,
+                    source_id
+                ),
                 source_type,
                 field_type,
                 link
