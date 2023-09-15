@@ -595,7 +595,7 @@ bool Haxe_Target::Generate(
 
                 //abstract initialization:
                 load_types << indention << indention << indention << "case " << i << ":\n";
-                load_types << indention << indention << indention << indention << table->lowercaseName << "[ index ] = new " << table->realName << "( ";
+                load_types << indention << indention << indention << indention << table->lowercaseName << "[ index ] = new " << table->realName << "( r( " << i << " ), ";
                 for ( const auto & field : inheritance_ordered.at( table ) ) {
                     load_types << init_data( messenger, field ) << ", ";
                 }

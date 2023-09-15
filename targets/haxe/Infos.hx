@@ -178,10 +178,14 @@ private Loader {
         }
         return r;
     }
+    /** To pretend that objects in tables of type PRECISE are plurals.*/
     private function v( table : Info ) {
         final r = Vector< Info >( 1 );
         r[ 0 ] = table;
         return r;
+    }
+    private function r( i : Int ) {
+        return infos.__all[ i ];
     }
 
     /** Lets browser to take a break (some systems might even kill the application if it's unresponsive for too long). */
