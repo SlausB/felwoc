@@ -231,21 +231,23 @@ private class Loader {
 
     private function load_objects() {
         for ( i in 0 ... 1000 ) {
+            //all types loaded:
+            if ( loading_type >= infos.__all.length ) {
+                links_to_load = n();
+                load_links();
+                return;
+            }
             //all objects of current type successfully loaded:
             if ( loaded_of_type >= infos.__all[ loading_type ].objects.length ) {
-                while (
-                    loading_type < infos.__all[ loading_type ].objects.length
-                    &&
-                    infos.__all[ loading_type ].precise
-                ) {
+                //switching to next type:
+                do {
                     loading_type += 1;
                 }
-                //all types loaded:
-                if ( loading_type >= infos.__all[ loading_type ].objects.length ) {
-                    links_to_load = n();
-                    load_links();
-                    return;
-                }
+                while (
+                    loading_type < infos.__all.length - 1
+                    &&
+                    infos.__all[ loading_type ].precise
+                );
                 loaded_of_type = 0;
             }
             else {
