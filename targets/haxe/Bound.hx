@@ -17,16 +17,13 @@ class Bound
 	public var objects : Vector< Info >;
 	/** Hash value from table's lowercase name to differentiate objects of this table from any other objects.*/
 	public var hash : Int;
-    /** Stores single "object" which is the whole table of type PRECISE.*/
-    public var precise : Bool;
 	
 	/** Both name and array at construction.*/
-	public function new( tableName : String, objects : Vector< Info >, hash : Int, precise : Bool )
+	public function new( tableName : String, objects : Vector< Info >, hash : Int )
 	{
 		this.tableName = tableName;
 		this.objects = objects;
 		this.hash = hash;
-        this.precise = precise;
 	}
 }
 )====="

@@ -53,6 +53,13 @@ const std::string explanation = "/* This file is generated using the \"xls2xj\" 
 
 const std::string tabBound = "__tabBound";
 
+const bool annotations = true;
+void annotate( auto & f, const string & type ) {
+    if ( annotations ) {
+        write_string( f, type );
+    }
+}
+
 void import(
     std::ofstream & o,
     const auto & target
@@ -234,7 +241,7 @@ void write_data(
     Messenger& messenger,
     const FieldData* fieldData,
     const auto & strings_cache,
-    const auto & type_index
+    const int32_t type_index
 ) {
 	switch ( fieldData->field->type ) {
         case Field::INHERITED: {
@@ -279,19 +286,19 @@ void write_data(
             write_LEB128( f, link->links.size() );
 
             for ( const auto & count : link->links ) {
-                write_LEB128( f, type_index( count.table ) );
+                write_LEB128( f, type_index );
                 write_LEB128( f, count.id );
                 write_LEB128( f, count.count );
             } }
             break;
 
         case Field::BOOL: {
-            Bool* asBool = (Bool*)fieldData;
+            Bool* asBool = (Bool*) fieldData;
             write_LEB128( f, int( asBool->value ) ); }
             break;
 
         case Field::ARRAY: {
-            Array* asArray = (Array*)fieldData;
+            Array* asArray = (Array*) fieldData;
             write_LEB128( f, asArray->values.size() );
             for ( size_t i = 0; i < asArray->values.size(); ++i ) {
                 write_string( f, to_string( asArray->values[ i ] ) );
@@ -436,13 +443,7 @@ bool Haxe_Target::Generate(
 			if ( fieldTypeName.empty() ) {
 				return false;
 			}
-			file << indention << "public ";
-			//links within tables of type "precise" will be defined the same way as all other links:
-			if ( table->type == Table::PRECISE && ! IsLink( field ) ) {
-				file << "static ";
-			}
-            file << "var ";
-			file << field->name << " : ";
+			file << indention << "public var " << field->name << " : ";
 			if ( IsLink( field ) ) {
 				file << linkName;
 			}
@@ -450,27 +451,12 @@ bool Haxe_Target::Generate(
 				file << fieldTypeName;
 			}
 
-			if ( table->type == Table::PRECISE ) {
-				if ( ! IsLink( field ) ) {
-					file << " = " << PrintData( messenger, table->matrix[ 0 ][ fieldIndex ] );
-				}
-			}
-
 			file << ";\n";
-
-
 			file << indention << "\n";
 		}
 
-        //muting inherited constructor:
-        if ( table->type == Table::PRECISE ) {
-            file << indention << "public function new() {\n";
-            file << indention << indention << "super( cast( null ) );\n";
-            file << indention << "}\n";
-        }
-
 		//constructor:
-		if ( table->type != Table::PRECISE && table->type != Table::SINGLE ) {
+		if ( table->type != Table::SINGLE ) {
 			//declaration:
 			file << indention << "/** All (including inherited) fields (excluding links) are defined here. To let define classes only within it's classes without inherited constructors used undefined arguments.*/\n";
 			file << indention << "public function new(\n";
@@ -546,16 +532,9 @@ bool Haxe_Target::Generate(
 			switch ( table->type )
 			{
                 case Table::MANY:
-                //for now there are no differences with MANY:
                 case Table::MORPH:
-                    fields << " = new Vector< " << classNames.at( table ) << " >( " << table->matrix.size() << " );\n";
-                    break;
-
                 case Table::PRECISE:
-                //for now there are no differences with PRECISE:
-                case Table::SINGLE:
-                    //such tables must be created to be able to define links later:
-                    fields << " = new " << classNames.at( table ) << "();\n";
+                    fields << " = new Vector< " << classNames.at( table ) << " >( " << table->matrix.size() << " );\n";
                     break;
 
                 default:
@@ -569,37 +548,11 @@ bool Haxe_Target::Generate(
 
         const auto linkable = linkable_tables( ast );
         replace( infos_text, "{BOUNDS}", to_string( linkable.size() ) );
-        const auto type_index = [&]( const Table * table ) -> int32_t {
-            for ( size_t i = 0; i < linkable.size(); ++ i ) {
-                if ( linkable[ i ] == table ) {
-                    return i;
-                }
-            }
-            messenger << ( boost::format( "E: Haxe: type index for table \"%s\" was NOT resolved.\n" ) % table->lowercaseName );
-            return -1;
-        };
 
         stringstream bounds;
         for ( size_t i = 0; i < linkable.size(); ++ i ) {
             const auto & t = linkable[ i ];
-            bounds << indention << indention << "__all[ " << i << " ] = b( " << print_string( t->realName ) << ", ";
-            if ( t->type == Table::PRECISE ) {
-                bounds << "v( " << t->lowercaseName << " )";
-            }
-            else {
-                bounds << "cast( " << t->lowercaseName << " )";
-            }
-            bounds << ", " << str( boost::format( "0x%X" ) % hashes.at( t->lowercaseName ) );
-
-            bounds << ", ";
-            if ( t->type == Table::PRECISE ) {
-                bounds << "true";
-            }
-            else {
-                bounds << "false";
-            }
-            
-            bounds << " );\n";
+            bounds << indention << indention << "__all[ " << i << " ] = b( " << print_string( t->realName ) << ", " << "cast( " << t->lowercaseName << " ), " << str( boost::format( "0x%X" ) % hashes.at( t->lowercaseName ) ) << " );\n";
         }
         replace( infos_text, "{INIT_BOUNDS}", bounds.str() );
 
@@ -611,10 +564,6 @@ bool Haxe_Target::Generate(
             load_types << indention << indention << "switch ( type ) {\n";
             for ( size_t i = 0; i < linkable.size(); ++ i ) {
                 const auto & table = linkable[ i ];
-                //tables PRECISE initialized at construction when declared as fields:
-                if ( table->type == Table::PRECISE ) {
-                    continue;
-                }
 
                 //abstract initialization:
                 load_types << indention << indention << indention << "case " << i << ":\n";
@@ -640,7 +589,7 @@ bool Haxe_Target::Generate(
                     );
 
                     for ( const FieldData * data : inh_reordered ) {
-                        write_data( bin, messenger, data, strings_cache, type_index );
+                        write_data( bin, messenger, data, strings_cache, i );
                     }
                 }
             }

@@ -92,8 +92,8 @@ class Infos {
     }
 }
 
-private function b( tableName : String, objects : Vector< Info >, hash : Int, precise : Bool ) {
-    return new Bound( tableName, objects, hash, precise );
+private function b( tableName : String, objects : Vector< Info >, hash : Int ) {
+    return new Bound( tableName, objects, hash );
 }
 
 private class Loader {
@@ -165,9 +165,7 @@ private class Loader {
 
         objects_to_load = 0;
         for ( bound in infos.__all ) {
-            if ( ! bound.precise ) {
-                objects_to_load += bound.objects.length;
-            }
+            objects_to_load += bound.objects.length;
         }
 
         strings_to_load = n();
@@ -260,14 +258,7 @@ private class Loader {
             //all objects of current type successfully loaded:
             if ( loaded_of_type >= infos.__all[ loading_type ].objects.length ) {
                 //switching to next type:
-                do {
-                    loading_type += 1;
-                }
-                while (
-                    loading_type < infos.__all.length - 1
-                    &&
-                    infos.__all[ loading_type ].precise
-                );
+                loading_type += 1;
                 loaded_of_type = 0;
             }
             else {
