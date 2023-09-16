@@ -220,8 +220,7 @@ std::string init_data( Messenger& messenger, const Field * field )
             return "n()";
 
         case Field::LINK:
-            //links will be connected later:
-            return "_e";
+            return "l()";
 
         case Field::BOOL:
             return "bool( n() )";
@@ -534,7 +533,14 @@ bool Haxe_Target::Generate(
                 case Table::MANY:
                 case Table::MORPH:
                 case Table::PRECISE:
-                    fields << " = new Vector< " << classNames.at( table ) << " >( " << table->matrix.size() << " );\n";
+                    fields << " = new Vector< " << classNames.at( table ) << " >( ";
+                    if ( table->type == Table::PRECISE ) {
+                        fields << "1";
+                    }
+                    else {
+                        fields << table->matrix.size();
+                    }
+                    fields << " );\n";
                     break;
 
                 default:

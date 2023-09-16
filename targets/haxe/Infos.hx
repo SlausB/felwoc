@@ -126,7 +126,7 @@ private class Loader {
     /** Currently loading type id.*/
     private var loading_type : Int = 0;
     /** How much objects of loading_type already loaded.*/
-    private var loaded_of_type : Int = -1;
+    private var loaded_of_type : Int = 0;
 
     /** How much every specific part weights in terms of loading burden.*/
     private final load_weight = [ 2, 4, 2 ];
@@ -255,6 +255,7 @@ private class Loader {
                 load_links();
                 return;
             }
+
             //all objects of current type successfully loaded:
             if ( loaded_of_type >= infos.__all[ loading_type ].objects.length ) {
                 //switching to next type:
