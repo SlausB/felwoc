@@ -28,4 +28,12 @@ class TestSample extends utest.Test {
         data;
         data.bytesAvailable == 0;
     }
+
+    function specForest() {
+        infos.forest.length == 3;
+        infos.forest[ 1 ].color == "зелёное";
+        infos.forest[ 2 ].kind == "сосна";
+        infos.forest[ 0 ].strength == 0;
+        infos.forest[ 2 ].mass == 14;
+    }
 }

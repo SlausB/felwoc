@@ -118,9 +118,10 @@ private class Loader {
 
     private var objects_to_load : Int;
     private var objects_loaded : Int = 0;
-
-    private var links_to_load : Int;
-    private var links_loaded : Int = 0;
+    
+    /** Preloaded data to compile links when all objects was already loaded.*/
+    private var links = new Array< PendingLink >();
+    private var links_loaded = 0;
 
     /** Currently loading type id.*/
     private var loading_type : Int = 0;
@@ -201,6 +202,26 @@ private class Loader {
     private function bool( v : Int ) {
         return v == 1;
     }
+    /** Define link field with temporarely preloaded data to compile later or just empty Link.*/
+    private function l() {
+        final count = n();
+        if ( count <= 0 ) {
+            return _e;
+        }
+        final link = new Link( new Vector< Count >( count ) );
+        final p = new PendingLink(
+            link,
+            new Vector< { type : Int, id : Int, count : Int } >( count ),
+        );
+        for ( i in 0 ... count ) {
+            final type  = n();
+            final id    = n();
+            final count = n();
+            p.data[ i ] = { type:type, id:id, count:count };
+        }
+        links.push( p );
+        return link;
+    }
 
     /** Lets browser take a break (some systems might even kill the application if it's unresponsive for too long). */
     private function chill( cb : ()->Void ) {
@@ -233,7 +254,6 @@ private class Loader {
         for ( i in 0 ... 1000 ) {
             //all types loaded:
             if ( loading_type >= infos.__all.length ) {
-                links_to_load = n();
                 load_links();
                 return;
             }
@@ -266,45 +286,40 @@ private class Loader {
 
     private function load_links() {
         for ( i in 0 ... 300 ) {
-            if ( links_loaded >= links_to_load ) {
+            if ( links_loaded >= links.length ) {
+                links = null;
                 _onDone();
                 return;
             }
-            final source_type = n();
-            final source_id = n();
-            final field_type = n();
-            final count = n();
-            final link = new Link( new Vector< Count >( count ) );
-            for ( c in 0 ... count ) {
-                final target_type = n();
-                final target_id = n();
-                final quantity = n();
-                link.links[ c ] = new Count(
+            final p = links[ links_loaded ];
+            links[ links_loaded ] = null;
+            for ( c in 0 ... p.data.length ) {
+                final co = p.data[ c ];
+                p.target.links[ c ] = new Count(
                     Infos.FindLinkTarget(
-                        infos.__all[ target_type ].objects,
-                        target_id
+                        infos.__all[ co.type ].objects,
+                        co.id,
                     ),
-                    quantity
+                    co.count,
                 );
             }
-            link_type(
-                Infos.FindLinkTarget(
-                    infos.__all[ source_type ].objects,
-                    source_id
-                ),
-                source_type,
-                field_type,
-                link
-            );
+            p.target = null;
 
             links_loaded += 1;
         }
 
-        report_progress( LINKS_ORDER, links_loaded / links_to_load );
+        report_progress( LINKS_ORDER, links_loaded / links.length );
         chill( load_links );
     }
-    private function link_type( o : Info, type : Int, field : Int, l : Link ) {
-{LINK_TYPES}
+}
+
+private class PendingLink {
+    public var target : Link;
+    public var data : Vector< { type : Int, id : Int, count : Int } >;
+
+    public function new( target : Link, data : Vector< { type : Int, id : Int, count : Int } > ) {
+        this.target = target;
+        this.data = data;
     }
 }
 
