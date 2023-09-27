@@ -147,7 +147,7 @@ std::string PrintData( Messenger& messenger, const FieldData* fieldData )
             Text* text = ( Text* ) fieldData;
             //when outputting binary data (which Haxe target does), no need to escape strings or embrace them with '"':
             //return print_string( text->text ); }
-            return text->text;
+            return text->text; }
 
         case Field::FLOAT: {
             Float* asFloat = ( Float* ) fieldData;
