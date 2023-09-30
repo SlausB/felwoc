@@ -224,3 +224,17 @@ auto linkable_tables( const AST & ast ) {
     }
     return linkable;
 }
+
+auto indexOf( const auto & array, const auto & item ) {
+    int32_t i = 0;
+    for (
+        auto it = begin( array );
+        it != end( array );
+        ++ it, ++ i
+    ) {
+        if ( item == * it ) {
+            return i;
+        }
+    }
+    return -1;
+}

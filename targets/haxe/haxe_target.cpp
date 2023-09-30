@@ -239,12 +239,13 @@ void write_data(
     Messenger& messenger,
     const FieldData* fieldData,
     const auto & strings_cache,
-    const int32_t type_index
+    const int32_t type_index,
+    const auto & linkable
 ) {
 	switch ( fieldData->field->type ) {
         case Field::INHERITED: {
             Inherited* inherited = ( Inherited* ) fieldData;
-            write_data( f, messenger, inherited->fieldData, strings_cache, type_index );
+            write_data( f, messenger, inherited->fieldData, strings_cache, type_index, linkable );
             break; }
 
         case Field::SERVICE: {
@@ -284,7 +285,7 @@ void write_data(
             write_LEB128( f, link->links.size() );
 
             for ( const auto & count : link->links ) {
-                write_LEB128( f, type_index );
+                write_LEB128( f, indexOf( linkable, count.table ) );
                 write_LEB128( f, count.id );
                 write_LEB128( f, count.count );
             } }
@@ -424,8 +425,11 @@ bool Haxe_Target::Generate(
 		file << "{\n";
 
 		//fields:
-		for ( size_t fieldIndex = 0; fieldIndex < table->fields.size(); ++fieldIndex )
-		{
+		for (
+            size_t fieldIndex = 0;
+            fieldIndex < table->fields.size();
+            ++ fieldIndex
+        ) {
 			Field* field = table->fields[ fieldIndex ];
 
 			if ( field->type == Field::INHERITED ) {
@@ -514,8 +518,11 @@ bool Haxe_Target::Generate(
 
 		//fields:
         stringstream fields;
-		for ( size_t tableIndex = 0; tableIndex < ast.tables.size(); ++tableIndex )
-		{
+		for (
+            size_t tableIndex = 0;
+            tableIndex < ast.tables.size();
+            ++ tableIndex
+        ) {
 			Table* table = ast.tables[ tableIndex ];
 
 			if ( table->type == Table::VIRTUAL ) {
@@ -567,7 +574,11 @@ bool Haxe_Target::Generate(
         {
             stringstream load_types;
             load_types << indention << indention << "switch ( type ) {\n";
-            for ( size_t i = 0; i < linkable.size(); ++ i ) {
+            for (
+                size_t i = 0;
+                i < linkable.size();
+                ++ i
+            ) {
                 const auto & table = linkable[ i ];
 
                 //abstract initialization:
@@ -594,7 +605,14 @@ bool Haxe_Target::Generate(
                     );
 
                     for ( const FieldData * data : inh_reordered ) {
-                        write_data( bin, messenger, data, strings_cache, i );
+                        write_data(
+                            bin,
+                            messenger,
+                            data,
+                            strings_cache,
+                            i,
+                            linkable
+                        );
                     }
                 }
             }
