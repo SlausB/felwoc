@@ -1,11 +1,7 @@
-/bazel-*
-/bazel_cache
-
 /felwoc.txt
-/xls2xj
-/output
+/felwoc
 
-/out
+/build
 
 /test/haxe/Source/design
 /test/haxe/Assets/xls2xj.bin

@@ -1,0 +1,1 @@
+Was standalone repo once in a time, but in modern days such functionality doesn't deserve having any implementation whatsoever anyway, so integrating it into current project directly to just build this project ASAP.

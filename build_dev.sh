@@ -4,10 +4,12 @@ reset
 
 set -e
 
-bazel build -c dbg xls2xj
-mv -f ./bazel-bin/xls2xj ./
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
 
-rm -rf out
+rm -rf ./build/out
 
-#gdb -ex run ./xls2xj
-./xls2xj
+#gdb -ex run ./build/xls2xj
+./build/xls2xj
+
+

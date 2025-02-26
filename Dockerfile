@@ -14,7 +14,7 @@ RUN apt-get -y update && apt-get -y install \
     # provide libneko.so.2 for Haxe: \
     neko \
     # to install Lime: \
-    libgl1-mesa-dev libglu1-mesa-dev g++ g++-multilib gcc-multilib libasound2-dev libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev
+    libgl1-mesa-dev libglu1-mesa-dev g++ g++-multilib gcc-multilib libasound2-dev libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev libpulse-dev
 
 # nvm environment variables
 ENV NVM_DIR /root/.nvm
@@ -63,3 +63,11 @@ RUN haxelib dev lime lime && \
 
 WORKDIR /root/app
 CMD /bin/bash
+
+RUN apt update && apt install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    libboost-all-dev \
+    zlib1g-dev \
