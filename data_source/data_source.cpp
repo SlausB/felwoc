@@ -2,6 +2,7 @@
 #include "data_source.h"
 
 #include <vector>
+#include <cstring>
 
 std::string GetString(boost::shared_ptr<Cell> cell)
 {

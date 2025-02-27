@@ -71,3 +71,6 @@ RUN apt update && apt install -y \
     git \
     libboost-all-dev \
     zlib1g-dev \
+    libminizip-dev \
+
+

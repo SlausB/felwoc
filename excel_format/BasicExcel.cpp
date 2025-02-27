@@ -1,5 +1,9 @@
 #include "ExcelFormat.h"
 
+// these two used to overcome GetWString() deletion:
+#include <locale>
+#include <codecvt>
+
 #ifdef _MSC_VER
 #include <malloc.h>	// for alloca()
 #endif
@@ -6828,8 +6832,12 @@ ostream& operator<<(ostream& os, const BasicExcelCell& cell)
 			break;
 
 		case BasicExcelCell::WSTRING:
-			os << cell.GetWString();
+		{
+			//ostream.operator<<(wstring) was removed from C++ (WTF!), so fixing it:
+			std::wstring_convert< std::codecvt_utf8< wchar_t > > converter;
+			os << converter.to_bytes( cell.GetWString() );  // Convert wstring to UTF-8 string
 			break;
+		}
 	}
 
 	return os;

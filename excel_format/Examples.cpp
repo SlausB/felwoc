@@ -34,7 +34,7 @@ using namespace ExcelFormat;
 #endif // _WIN32
 
 
-#include "pugixml.hpp"
+#include "xml/pugixml.hpp"
 
 #include "boost/format.hpp"
 
@@ -119,7 +119,7 @@ static void example2(const char* path)
 	font_header._options = EXCEL_FONT_STRUCK_OUT;
 
 	CellFormat fmt_header(fmt_mgr, font_header);
-	fmt_header.set_rotation(30); // rotate the header cell text 30° to the left
+	fmt_header.set_rotation(30); // rotate the header cell text 30ï¿½ to the left
 
 	int row = 0;
 

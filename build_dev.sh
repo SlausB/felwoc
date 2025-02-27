@@ -9,7 +9,7 @@ cmake --build build
 
 rm -rf ./build/out
 
-#gdb -ex run ./build/xls2xj
-./build/xls2xj
+#gdb -ex run ./build/felwoc
+./build/felwoc
 
 

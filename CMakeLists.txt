@@ -20,57 +20,26 @@ add_compile_options(
     -fmax-errors=2
 )
 
+# Find dependencies
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost REQUIRED COMPONENTS program_options)
-include_directories(${Boost_INCLUDE_DIRS})
-
+find_package(Boost REQUIRED COMPONENTS program_options filesystem)
 find_package(ZLIB REQUIRED)
+find_library(MINIZIP_LIBRARY NAMES minizip REQUIRED)
 
-# Excel format library
-add_library(excel_format
-    excel_format/BasicExcel.cpp
-    excel_format/ExcelFormat.cpp
-)
-target_include_directories(excel_format PUBLIC ${CMAKE_SOURCE_DIR}/excel_format)
+# Recursively gather all .cpp and .h files
+file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_SOURCE_DIR}/*.h)
+list(REMOVE_ITEM SOURCES ${CMAKE_SOURCE_DIR}/excel_format/Examples.cpp)
+list(REMOVE_ITEM SOURCES ${CMAKE_SOURCE_DIR}/output/test/main.cpp)
+list(FILTER SOURCES EXCLUDE REGEX "CMakeCXXCompilerId\\.cpp$")
 
-# Output library
-add_library(output
-    output/messenger.cpp
-    output/outputs/console_output.cpp
-    output/outputs/file_output.cpp
-    output/outputs/string_output.cpp
-)
-target_include_directories(output PUBLIC ${CMAKE_SOURCE_DIR}/output)
+# Define the executable
+add_executable(felwoc ${SOURCES})
 
-# Targets library
-add_library(targets
-    targets/utils.cpp
-    targets/as3/as3_target.cpp
-    targets/ts/ts_target.cpp
-    targets/haxe/haxe_target.cpp
-)
-target_include_directories(targets PUBLIC ${CMAKE_SOURCE_DIR}/targets)
-target_link_libraries(targets PRIVATE ${Boost_LIBRARIES} output ast)
+# Include directories
+target_include_directories(felwoc PUBLIC ${CMAKE_SOURCE_DIR})
 
-# AST library
-file(GLOB AST_SOURCES ${CMAKE_SOURCE_DIR}/ast/*.cpp)
-add_library(ast ${AST_SOURCES})
-target_include_directories(ast PUBLIC ${CMAKE_SOURCE_DIR}/ast)
-
-# PugiXML library
-add_library(pugixml xml/pugixml.cpp)
-target_include_directories(pugixml PUBLIC ${CMAKE_SOURCE_DIR}/xml)
-
-# Data source library
-add_library(data_source
-    data_source/data_source.cpp
-    data_source/ods_as_xml/ods_as_xml.cpp
-)
-target_include_directories(data_source PUBLIC ${CMAKE_SOURCE_DIR}/data_source)
-target_link_libraries(data_source PRIVATE output pugixml ZLIB::ZLIB)
-
-# Main executable
-add_executable(felwoc main.cpp parsing.cpp)
-target_link_libraries(felwoc PRIVATE ${Boost_LIBRARIES} excel_format output targets data_source)
+# Link required libraries
+target_link_libraries(felwoc PRIVATE ${Boost_LIBRARIES} ZLIB::ZLIB ${MINIZIP_LIBRARY})
