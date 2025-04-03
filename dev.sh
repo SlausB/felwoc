@@ -8,8 +8,5 @@ chmod a+rwX -R ./ >/dev/null 2>/dev/null
 docker compose down
 docker compose up -d --build --force-recreate --renew-anon-volumes --remove-orphans
 
-# persisting Bazel's cache:
-docker compose exec compiler bash -c "mkdir -p /home/docker/.cache/bazel && ln -s bazel_cache /home/docker/.cache/bazel"
-
 docker compose exec compiler bash
 docker compose down
